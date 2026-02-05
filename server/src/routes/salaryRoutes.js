@@ -1,0 +1,17 @@
+const express = require('express');
+const router = express.Router();
+const { createComponent, getComponents, createStructure, getStructures, getStructureById } = require('../controllers/salaryController');
+const { protect, authorize } = require('../middleware/authMiddleware');
+
+router.route('/components')
+    .post(protect, authorize('Super Admin', 'Payroll Admin'), createComponent)
+    .get(protect, getComponents);
+
+router.route('/structures')
+    .post(protect, authorize('Super Admin', 'Payroll Admin'), createStructure)
+    .get(protect, getStructures);
+
+router.route('/structures/:id')
+    .get(protect, getStructureById);
+
+module.exports = router;
