@@ -14,7 +14,7 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 app.use(helmet());
-app.use(morgan('dev'));
+// app.use(morgan('dev'));
 
 app.get('/', (req, res) => {
     res.send('API is running...');
@@ -26,6 +26,7 @@ app.use('/api/employees', require('./src/routes/employeeRoutes'));
 app.use('/api/salary', require('./src/routes/salaryRoutes'));
 app.use('/api/attendance', require('./src/routes/attendanceRoutes'));
 app.use('/api/payroll', require('./src/routes/payrollRoutes'));
+app.use('/api/payroll-profile', require('./src/routes/payrollProfileRoutes'));
 app.use('/api/tax', require('./src/routes/taxRoutes'));
 app.use('/api/reports', require('./src/routes/reportRoutes'));
 app.use('/api/seed', require('./src/routes/seedRoutes'));

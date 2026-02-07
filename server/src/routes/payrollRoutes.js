@@ -4,13 +4,13 @@ const { runPayroll, getPayroll, approvePayroll } = require('../controllers/payro
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.route('/run')
-    .post(protect, authorize('Super Admin', 'Payroll Admin'), runPayroll);
+    .post(protect, authorize('HR Admin'), runPayroll);
 
 router.route('/approve')
-    .put(protect, authorize('Super Admin', 'Payroll Admin'), approvePayroll);
+    .put(protect, authorize('HR Admin'), approvePayroll);
 
 router.route('/')
-    .get(protect, getPayroll);
+    .get(protect, authorize('HR Admin', 'Super Admin', 'Finance'), getPayroll);
 
 const { getPayslip, getEmployeePayslips } = require('../controllers/payslipController');
 router.route('/payslip/:id').get(protect, getPayslip);

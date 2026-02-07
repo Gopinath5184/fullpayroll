@@ -1,87 +1,93 @@
 import { useState } from 'react';
-import api from '../utils/api';
+import { FaFilePdf, FaFileExcel, FaDownload, FaChartBar, FaTable } from 'react-icons/fa';
 
 const Reports = () => {
-    const [month, setMonth] = useState(new Date().getMonth() + 1);
-    const [year, setYear] = useState(new Date().getFullYear());
+    const [activeTab, setActiveTab] = useState('Payroll');
 
-    const downloadCSV = (data, filename) => {
-        if (!data || data.length === 0) {
-            alert('No data available');
-            return;
-        }
-        const headers = Object.keys(data[0]);
-        const csvContent = "data:text/csv;charset=utf-8,"
-            + [headers.join(','), ...data.map(row => headers.map(h => row[h]).join(','))].join('\n');
-
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", filename);
-        document.body.appendChild(link);
-        link.click();
-    };
-
-    const handleDownload = async (type) => {
-        try {
-            const { data } = await api.get(`/reports/${type}`, { params: { month, year } });
-            downloadCSV(data, `${type}_Report_${month}_${year}.csv`);
-        } catch (error) {
-            console.error('Error downloading report', error);
-            alert('Error downloading report');
-        }
+    const reports = {
+        Payroll: [
+            { name: 'Monthly Payroll Register', date: 'Jan 2025', format: 'PDF/Excel' },
+            { name: 'Bank Transfer Statement', date: 'Jan 2025', format: 'Excel' },
+            { name: 'CTC Variance Report', date: 'Q1 2024-25', format: 'PDF' }
+        ],
+        Statutory: [
+            { name: 'PF Electronic Challan (ECR)', date: 'Dec 2024', format: 'Text/Excel' },
+            { name: 'ESI Contribution Report', date: 'Dec 2024', format: 'Excel' },
+            { name: 'Professional Tax Summary', date: 'Dec 2024', format: 'PDF' }
+        ],
+        Tax: [
+            { name: 'Form 16 Generation', date: 'FY 2023-24', format: 'Zip/PDF' },
+            { name: 'TDS Challan Status', date: 'Monthly', format: 'PDF' },
+            { name: 'Section 80C Summary', date: 'FY 2024-25', format: 'Excel' }
+        ]
     };
 
     return (
-        <div className="container px-4 py-8 mx-auto animate-fade-in">
-            <div className="flex items-center gap-3 mb-8">
-                <div className="p-3 bg-purple-100 rounded-lg text-purple-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                </div>
+        <div className="space-y-6 animate-fade-in">
+            <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Statutory Reports</h1>
-                    <p className="text-gray-500">Generate and download compliance reports</p>
+                    <h1 className="text-3xl font-bold text-gray-800">Reports & Analytics</h1>
+                    <p className="text-gray-500">Download and analyze your organization's financial data</p>
+                </div>
+                <div className="flex gap-2">
+                    <button className="flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-lg font-medium border border-blue-100 hover:bg-blue-100 transition">
+                        <FaChartBar /> Analytics View
+                    </button>
                 </div>
             </div>
 
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
-                <div className="flex flex-col md:flex-row gap-6 mb-6">
-                    <div className="flex-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
-                        <select value={month} onChange={e => setMonth(e.target.value)} className="w-full border-gray-300 bg-gray-50 rounded-lg shadow-sm p-2.5 outline-none focus:ring-2 focus:ring-purple-500 border transition">
-                            {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                                <option key={m} value={m}>Month {m}</option>
-                            ))}
-                        </select>
+            {/* Main Tabs */}
+            <div className="flex border-b border-gray-200">
+                {Object.keys(reports).map(tab => (
+                    <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`px-6 py-3 font-semibold text-sm transition-all border-b-2 ${activeTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                    >
+                        {tab} Reports
+                    </button>
+                ))}
+            </div>
+
+            {/* Reports List */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {reports[activeTab].map((report, idx) => (
+                    <div key={idx} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition group">
+                        <div className="flex items-start justify-between mb-4">
+                            <div className="p-3 bg-gray-50 rounded-lg group-hover:bg-blue-50 transition">
+                                <FaTable className="text-gray-400 group-hover:text-blue-500" />
+                            </div>
+                            <span className="text-[10px] items-center px-2 py-1 rounded bg-gray-100 text-gray-600 font-bold uppercase tracking-wider">
+                                {report.format}
+                            </span>
+                        </div>
+                        <h3 className="font-bold text-gray-800 mb-1">{report.name}</h3>
+                        <p className="text-xs text-gray-500 mb-6">{report.date}</p>
+
+                        <div className="flex gap-2">
+                            <button className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white text-sm py-2 rounded-lg hover:bg-blue-700 transition font-medium">
+                                <FaDownload className="text-xs" /> Download
+                            </button>
+                            <button className="px-3 bg-gray-50 text-gray-400 border border-gray-200 rounded-lg hover:bg-gray-100 hover:text-gray-600 transition">
+                                <FaFilePdf />
+                            </button>
+                        </div>
                     </div>
-                    <div className="flex-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Select Year</label>
-                        <select value={year} onChange={e => setYear(e.target.value)} className="w-full border-gray-300 bg-gray-50 rounded-lg shadow-sm p-2.5 outline-none focus:ring-2 focus:ring-purple-500 border transition">
-                            <option value="2024">2024</option>
-                            <option value="2025">2025</option>
-                            <option value="2026">2026</option>
-                        </select>
-                    </div>
+                ))}
+            </div>
+
+            {/* Summary Section */}
+            <div className="bg-gradient-to-br from-indigo-900 to-blue-900 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden">
+                <div className="relative z-10">
+                    <h2 className="text-xl font-bold mb-2">Custom Reports</h2>
+                    <p className="text-blue-200 text-sm max-w-lg mb-6">Need a specific report layout? Our custom report builder allows you to select fields and filters to match your local compliance requirements.</p>
+                    <button className="bg-white text-blue-900 px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-blue-50 transition shadow-lg">
+                        Launch Report Builder
+                    </button>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div className="border border-gray-200 p-6 rounded-xl hover:shadow-lg transition-all bg-gradient-to-br from-white to-gray-50 cursor-pointer group" onClick={() => handleDownload('pf')}>
-                        <div className="mb-4 p-3 bg-blue-100 rounded-full w-12 h-12 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        </div>
-                        <h3 className="text-lg font-bold text-gray-800 mb-1">PF Report (ECR)</h3>
-                        <p className="text-sm text-gray-500 mb-4">Provident Fund Electronic Challan Return format for monthly filing.</p>
-                        <button className="w-full py-2 bg-white border border-blue-200 text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition">Download CSV</button>
-                    </div>
-
-                    <div className="border border-gray-200 p-6 rounded-xl hover:shadow-lg transition-all bg-gradient-to-br from-white to-gray-50 cursor-pointer group" onClick={() => handleDownload('esi')}>
-                        <div className="mb-4 p-3 bg-green-100 rounded-full w-12 h-12 flex items-center justify-center text-green-600 group-hover:scale-110 transition-transform">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        </div>
-                        <h3 className="text-lg font-bold text-gray-800 mb-1">ESI Report</h3>
-                        <p className="text-sm text-gray-500 mb-4">Detailed Employee State Insurance contribution data.</p>
-                        <button className="w-full py-2 bg-white border border-green-200 text-green-600 rounded-lg font-medium hover:bg-green-50 transition">Download CSV</button>
-                    </div>
+                {/* Background Decoration */}
+                <div className="absolute right-0 bottom-0 opacity-10 transform translate-x-12 translate-y-12">
+                    <FaFileExcel size={240} />
                 </div>
             </div>
         </div>

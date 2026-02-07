@@ -23,7 +23,7 @@ const seedData = async (req, res) => {
             { name: 'Super Admin', email: 'superadmin@payroll.com', role: 'Super Admin' },
             { name: 'Payroll Admin', email: 'payroll@payroll.com', role: 'Payroll Admin' },
             { name: 'HR Admin', email: 'hr@payroll.com', role: 'HR Admin' },
-            { name: 'John Employee', email: 'employee@payroll.com', role: 'Employee' },
+            { name: 'Employee', email: 'employee@payroll.com', role: 'Employee' },
             { name: 'Finance User', email: 'finance@payroll.com', role: 'Finance' }
         ];
 
@@ -40,16 +40,21 @@ const seedData = async (req, res) => {
             createdUsers.push(user);
         }
 
-        const empUser = createdUsers.find(u => u.role === 'Employee');
-        if (empUser) {
+        for (const user of createdUsers) {
             await Employee.create({
-                user: empUser._id,
+                user: user._id,
                 organization: org._id,
-                employeeId: 'EMP001',
-                designation: 'Software Engineer',
-                department: 'Engineering',
+                employeeId: `EMP-${user.role.substring(0, 3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
+                designation: user.role,
+                department: 'Management',
                 dateOfJoining: new Date(),
-                status: 'Active'
+                status: 'Active',
+                taxRegime: 'New',
+                paymentDetails: {
+                    bankName: 'HDFC Bank',
+                    accountNumber: '501000' + Math.floor(1000000 + Math.random() * 9000000),
+                    ifscCode: 'HDFC0001234'
+                }
             });
         }
 

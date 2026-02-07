@@ -51,6 +51,7 @@ const markAttendance = async (req, res) => {
 const getAttendance = async (req, res) => {
     const { employeeId, month, year } = req.query;
 
+    if (!req.user) return res.status(401).json({ message: 'User not found' });
     let query = { organization: req.user.organization };
 
     if (employeeId) query.employee = employeeId;

@@ -47,6 +47,11 @@ const employeeSchema = new mongoose.Schema({
         uanNumber: String, // PF
         esiNumber: String
     },
+    taxRegime: {
+        type: String,
+        enum: ['Old', 'New'],
+        default: 'New'
+    },
     // Salary Structure assignment will be linked here later or in a separate collection
     salaryStructure: {
         type: mongoose.Schema.Types.ObjectId,

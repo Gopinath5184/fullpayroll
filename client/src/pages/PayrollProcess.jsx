@@ -159,7 +159,7 @@ const PayrollProcess = () => {
                                 {payrolls.map(item => (
                                     <tr key={item._id} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                            {item.employee?.user?.name || item.employee?.employeeId}
+                                            {item.employee?.user?.name || item.employee?.employeeId || 'Unknown Employee'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {item.presentDays} / {item.workingDays}

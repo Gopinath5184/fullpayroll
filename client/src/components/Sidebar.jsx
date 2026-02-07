@@ -4,7 +4,7 @@ import AuthContext from '../context/AuthContext';
 import {
     FaHome, FaBuilding, FaUsers, FaMoneyBillWave,
     FaCalendarCheck, FaFileInvoiceDollar, FaFileContract,
-    FaChartBar
+    FaChartBar, FaCalculator
 } from 'react-icons/fa';
 
 const Sidebar = () => {
@@ -13,13 +13,14 @@ const Sidebar = () => {
 
     const navigation = [
         { name: 'Dashboard', href: '/dashboard', icon: FaHome, roles: ['Super Admin', 'Payroll Admin', 'HR Admin', 'Employee', 'Finance'] },
-        { name: 'Compliance', href: '/compliance', icon: FaBuilding, roles: ['Super Admin', 'Payroll Admin'] },
+        { name: 'Statutory', href: '/statutory', icon: FaBuilding, roles: ['Super Admin'] },
         { name: 'Employees', href: '/employees', icon: FaUsers, roles: ['Super Admin', 'Payroll Admin', 'HR Admin'] },
+        { name: 'Payroll Profile', href: '/payroll-profiles', icon: FaCalculator, roles: ['HR Admin'] },
         { name: 'Salary Config', href: '/salary-config', icon: FaMoneyBillWave, roles: ['Super Admin', 'Payroll Admin', 'HR Admin'] },
         { name: 'Attendance', href: '/attendance', icon: FaCalendarCheck, roles: ['Super Admin', 'Payroll Admin', 'HR Admin', 'Employee'] },
-        { name: 'Run Payroll', href: '/payroll', icon: FaFileInvoiceDollar, roles: ['Super Admin', 'Payroll Admin'] },
+        { name: 'Run Payroll', href: '/payroll', icon: FaFileInvoiceDollar, roles: ['HR Admin'] },
         { name: 'My Payslips', href: '/my-payslips', icon: FaFileInvoiceDollar, roles: ['Employee'] },
-        { name: 'Tax Declaration', href: '/tax-declaration', icon: FaFileContract, roles: ['Employee', 'Super Admin', 'Payroll Admin', 'HR Admin'] },
+        { name: 'Tax Declaration', href: '/tax-declaration', icon: FaFileContract, roles: ['HR Admin'] },
         { name: 'Reports', href: '/reports', icon: FaChartBar, roles: ['Super Admin', 'Payroll Admin', 'Finance'] },
     ];
 

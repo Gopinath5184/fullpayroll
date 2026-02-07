@@ -77,7 +77,7 @@ const runPayroll = async (req, res) => {
 
         // Re-write simpler loop with proper population
         // Call helper function
-        await generatePayrollBatch(employees, month, year, organization, statutory, res);
+        await generatePayrollBatch(employees, month, year, organization, statutory, res, req.user._id, req.ip);
 
     } catch (error) {
         console.error(error);
@@ -85,7 +85,7 @@ const runPayroll = async (req, res) => {
     }
 };
 
-const generatePayrollBatch = async (employees, month, year, organization, statutory, res) => {
+const generatePayrollBatch = async (employees, month, year, organization, statutory, res, userId, ip) => {
     const results = [];
     const totalDays = getDaysInMonth(month, year);
 
@@ -93,23 +93,30 @@ const generatePayrollBatch = async (employees, month, year, organization, statut
     const structures = await SalaryStructure.find({ organization }).populate('components.component');
 
     for (const emp of employees) {
-        // Mock: Assign first found structure if not linked
-        const structure = structures[0];
-        if (!structure) continue;
+        // Use employee's linked structure or fallback to first one
+        const structure = emp.salaryStructure
+            ? structures.find(s => s._id.toString() === emp.salaryStructure.toString())
+            : structures[0];
 
-        // Mock Attendance (Random LOP if no data?)
-        // Let's assume 0 LOP for demo unless records exist
+        if (!structure) {
+            console.log(`No salary structure found for ${emp.employeeId}`);
+            continue;
+        }
+
+        // Attendance Logic
         const startDate = new Date(year, month - 1, 1);
         const endDate = new Date(year, month, 0);
-        const attendanceCount = await Attendance.countDocuments({
+        const attendanceRecords = await Attendance.find({
             employee: emp._id,
-            date: { $gte: startDate, $lte: endDate },
-            status: { $in: ['Present', 'Half Day', 'Leave'] } // Leave is paid
+            date: { $gte: startDate, $lte: endDate }
         });
 
-        // If no records, assume full month present (Auto-approve mode) OR 0 days (Strict).
-        // Let's go with 30 days present for ease of testing if attendance empty
-        const paidDays = attendanceCount > 0 ? attendanceCount : totalDays;
+        // Calculate paid days: Total - LOP records
+        const lopCount = attendanceRecords.filter(r => r.status === 'Absent' || r.status === 'Loss of Pay').length;
+        const halfDayCount = attendanceRecords.filter(r => r.status === 'Half Day').length;
+
+        // If no records, assume full month present for demo/safety, or handle as per config
+        const paidDays = attendanceRecords.length > 0 ? (totalDays - lopCount - (halfDayCount * 0.5)) : totalDays;
         const lopDays = totalDays - paidDays;
         const payRatio = paidDays / totalDays;
 
@@ -117,24 +124,31 @@ const generatePayrollBatch = async (employees, month, year, organization, statut
         const processedDeductions = [];
         let gross = 0;
 
-        // process structure components
+        // 1. Calculate Earnings (First pass for Basic used in percentages)
+        let basicAmount = 0;
+
+        // Identify Basic Component first
+        const basicCompItem = structure.components.find(item => item.component?.name.toLowerCase().includes('basic'));
+        if (basicCompItem) {
+            const rawBasic = basicCompItem.value || basicCompItem.component.value;
+            basicAmount = Math.round(rawBasic * payRatio);
+        }
+
+        // Process all components
         structure.components.forEach(item => {
             const comp = item.component;
             if (!comp) return;
 
             let amount = 0;
-            if (item.calculationType === 'Flat Amount') {
-                amount = item.value || comp.value; // Override or default
-            } else if (item.calculationType === 'Percentage of Basic') {
-                // Find Basic first... complexity. 
-                // Simplified: Assume Flat amounts for everything in this demo
-                amount = item.value || comp.value;
-            } else {
-                amount = item.value || comp.value;
+            const configValue = item.value || comp.value;
+
+            if (item.calculationType === 'Flat Amount' || comp.calculationType === 'Flat Amount') {
+                amount = configValue;
+            } else if (item.calculationType === 'Percentage of Basic' || comp.calculationType === 'Percentage of Basic') {
+                amount = (configValue / 100) * (basicCompItem ? (basicCompItem.value || basicCompItem.component.value) : 0);
             }
 
             // Apply LOP Pro-rata
-            // Usually allowances are pro-rated. 
             const payableAmount = Math.round(amount * payRatio);
 
             if (comp.type === 'Earning') {
@@ -145,10 +159,30 @@ const generatePayrollBatch = async (employees, month, year, organization, statut
             }
         });
 
-        // Statutory Deductions (Auto-calc PF/ESI)
+        // 2. Statutory Deductions
+        // PF Calculation (Typically on Basic or Gross up to limit)
         if (statutory?.pf?.enabled) {
-            const pfAmount = Math.round(gross * (statutory.pf.employeeContribution / 100)); // Simplified: PF on Gross for now
-            processedDeductions.push({ name: 'Provident Fund', amount: pfAmount });
+            const pfWage = Math.min(basicAmount, statutory.pf.wageLimit || 15000);
+            const pfAmount = Math.round(pfWage * (statutory.pf.employeeContribution / 100));
+            if (pfAmount > 0) {
+                processedDeductions.push({ name: 'Provident Fund', amount: pfAmount });
+            }
+        }
+
+        // ESI Calculation (On Gross if Gross <= Limit)
+        if (statutory?.esi?.enabled && gross <= (statutory.esi.wageLimit || 21000)) {
+            const esiAmount = Math.round(gross * (statutory.esi.employeeContribution / 100));
+            if (esiAmount > 0) {
+                processedDeductions.push({ name: 'ESI', amount: esiAmount });
+            }
+        }
+
+        // Professional Tax (Based on Slabs)
+        if (statutory?.professionalTax?.enabled) {
+            const slab = statutory.professionalTax.slabs.find(s => gross >= s.minSalary && gross <= s.maxSalary);
+            if (slab && slab.taxAmount > 0) {
+                processedDeductions.push({ name: 'Professional Tax', amount: slab.taxAmount });
+            }
         }
 
         // Sum Deductions

@@ -8,7 +8,7 @@ const createEmployee = async (req, res) => {
     const {
         name, email, password, // For User creation
         employeeId, designation, department, dateOfJoining,
-        personalDetails, paymentDetails
+        personalDetails, paymentDetails, taxRegime, salaryStructure
     } = req.body;
 
     try {
@@ -36,7 +36,9 @@ const createEmployee = async (req, res) => {
             department,
             dateOfJoining,
             personalDetails,
-            paymentDetails
+            paymentDetails,
+            taxRegime,
+            salaryStructure
         });
 
         res.status(201).json(employee);
@@ -63,7 +65,8 @@ const getEmployeeById = async (req, res) => {
         .populate('user', 'name email role');
 
     if (employee && employee.organization.toString() === req.user.organization.toString()) {
-        res.json(employee);
+        const profile = await require('../models/PayrollProfile').findOne({ employee: employee._id });
+        res.json({ ...employee.toObject(), payrollProfile: profile });
     } else {
         res.status(404).json({ message: 'Employee not found' });
     }
@@ -73,22 +76,63 @@ const getEmployeeById = async (req, res) => {
 // @route   PUT /api/employees/:id
 // @access  Private (HR/Admin)
 const updateEmployee = async (req, res) => {
-    const employee = await Employee.findById(req.params.id);
+    try {
+        const employee = await Employee.findById(req.params.id);
 
-    if (employee && employee.organization.toString() === req.user.organization.toString()) {
-        const { designation, department, status, personalDetails, paymentDetails } = req.body;
+        if (employee && employee.organization.toString() === req.user.organization.toString()) {
+            const { name, designation, department, status, personalDetails, paymentDetails, taxRegime, salaryStructure } = req.body;
 
-        employee.designation = designation || employee.designation;
-        employee.department = department || employee.department;
-        employee.status = status || employee.status;
-        employee.personalDetails = personalDetails || employee.personalDetails;
-        employee.paymentDetails = paymentDetails || employee.paymentDetails;
+            // Update associated User name if provided
+            if (name) {
+                await User.findByIdAndUpdate(employee.user, { name });
+            }
 
-        const updatedEmployee = await employee.save();
-        res.json(updatedEmployee);
-    } else {
-        res.status(404).json({ message: 'Employee not found' });
+            employee.designation = designation || employee.designation;
+            employee.department = department || employee.department;
+            employee.status = status || employee.status;
+            employee.personalDetails = personalDetails || employee.personalDetails;
+            employee.paymentDetails = paymentDetails || employee.paymentDetails;
+            employee.taxRegime = taxRegime || employee.taxRegime;
+            employee.salaryStructure = salaryStructure || employee.salaryStructure;
+
+            await employee.save();
+
+            const updatedEmployee = await Employee.findById(employee._id).populate('user', 'name email role');
+            res.json(updatedEmployee);
+        } else {
+            res.status(404).json({ message: 'Employee not found' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error' });
     }
 };
 
-module.exports = { createEmployee, getEmployees, getEmployeeById, updateEmployee };
+// @desc    Get current employee profile
+// @route   GET /api/employees/me
+// @access  Private (Employee)
+const getMyProfile = async (req, res) => {
+    try {
+        const employee = await Employee.findOne({ user: req.user._id })
+            .populate('user', 'name email role')
+            .populate('salaryStructure', 'name');
+
+        if (!employee) {
+            return res.status(404).json({ message: 'Profile not found' });
+        }
+
+        const PayrollProfile = require('../models/PayrollProfile');
+        const payrollProfile = await PayrollProfile.findOne({ employee: employee._id });
+
+        res.json({
+            ...employee.toObject(),
+            // Merge or nesting? Let's provide it as a nested object for clarity
+            payrollProfile
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+module.exports = { createEmployee, getEmployees, getEmployeeById, updateEmployee, getMyProfile };

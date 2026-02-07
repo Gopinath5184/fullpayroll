@@ -4,15 +4,31 @@ const Statutory = require('../models/Statutory');
 // @route   GET /api/statutory
 // @access  Private (Admin)
 const getStatutoryConfig = async (req, res) => {
-    // Assuming user has organizationId linked or finding via linkage
-    // For simplicity, we might need to look up the organization ID from the user
-    const config = await Statutory.findOne({ organization: req.user.organization });
+    try {
+        const config = await Statutory.findOne({ organization: req.user.organization });
 
-    if (config) {
-        res.json(config);
-    } else {
-        // Return defaults if not found, or empty object
-        res.json({});
+        const defaults = {
+            pf: { enabled: true, employerContribution: 12, employeeContribution: 12, wageLimit: 15000, adminCharges: 0.5, edliCharges: 0.5 },
+            esi: { enabled: true, employerContribution: 3.25, employeeContribution: 0.75, wageLimit: 21000 },
+            professionalTax: { enabled: false, slabs: [] }
+        };
+
+        if (config) {
+            // Merge defaults with existing config
+            const mergedConfig = {
+                ...defaults,
+                ...config.toObject(),
+                pf: { ...defaults.pf, ...(config.pf || {}) },
+                esi: { ...defaults.esi, ...(config.esi || {}) },
+                professionalTax: { ...defaults.professionalTax, ...(config.professionalTax || {}) }
+            };
+            res.json(mergedConfig);
+        } else {
+            res.json(defaults);
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error' });
     }
 };
 
