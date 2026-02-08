@@ -5,6 +5,6 @@ const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.route('/')
     .get(protect, authorize('Super Admin', 'Payroll Admin'), getStatutoryConfig)
-    .put(protect, authorize('Super Admin', 'Payroll Admin'), updateStatutoryConfig);
+    .put(protect, authorize('Super Admin'), updateStatutoryConfig);
 
 module.exports = router;

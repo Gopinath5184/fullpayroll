@@ -6,7 +6,7 @@ const User = require('../models/User');
 // @access  Private (HR/Admin)
 const createEmployee = async (req, res) => {
     const {
-        name, email, password, // For User creation
+        name, email, password, role, // For User creation
         employeeId, designation, department, dateOfJoining,
         personalDetails, paymentDetails, taxRegime, salaryStructure
     } = req.body;
@@ -19,11 +19,17 @@ const createEmployee = async (req, res) => {
             return res.status(400).json({ message: 'User with this email already exists' });
         }
 
+        // Role Permission: Only Super Admin can assign roles other than 'Employee'
+        let userRole = 'Employee';
+        if (req.user.role === 'Super Admin' && req.body.role) {
+            userRole = req.body.role;
+        }
+
         user = await User.create({
             name,
             email,
             password: password || 'Welcome@123', // Default or generated password
-            role: 'Employee',
+            role: userRole,
             organization: req.user.organization
         });
 
