@@ -22,6 +22,10 @@ const payrollSchema = new mongoose.Schema({
     workingDays: Number,
     presentDays: Number,
     lopDays: Number,
+    overtimeHours: {
+        type: Number,
+        default: 0
+    },
 
     earnings: [{
         name: String, // Basic, HRA
@@ -33,6 +37,10 @@ const payrollSchema = new mongoose.Schema({
     }],
 
     grossSalary: Number,
+    overtimePay: {
+        type: Number,
+        default: 0
+    },
     totalDeductions: Number,
     netSalary: Number,
 
