@@ -269,4 +269,16 @@ const approvePayroll = async (req, res) => {
     res.json({ message: 'Payroll approved for period' });
 };
 
-module.exports = { runPayroll, getPayroll, approvePayroll };
+// @desc    Unlock/Revert Payroll to Draft
+// @route   PUT /api/payroll/unlock
+// @access  Private (Admin)
+const unlockPayroll = async (req, res) => {
+    const { month, year } = req.body;
+    await Payroll.updateMany(
+        { organization: req.user.organization, month, year },
+        { status: 'Draft' }
+    );
+    res.json({ message: 'Payroll unlocked. Status reverted to Draft.' });
+};
+
+module.exports = { runPayroll, getPayroll, approvePayroll, unlockPayroll };

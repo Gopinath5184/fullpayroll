@@ -45,6 +45,17 @@ const PayrollProcess = () => {
         }
     };
 
+    const unlockPayroll = async () => {
+        if (!confirm('Are you sure you want to unlock? This will revert status to Draft.')) return;
+        try {
+            await api.put('/payroll/unlock', { month, year });
+            setMessage('Payroll Unlocked. Status reverted to Draft.');
+            fetchPayroll();
+        } catch (error) {
+            setMessage('Error unlocking payroll');
+        }
+    };
+
     const getTotalNet = () => payrolls.reduce((acc, curr) => acc + curr.netSalary, 0);
 
     return (
@@ -110,10 +121,20 @@ const PayrollProcess = () => {
                         )}
 
                         {payrolls.length > 0 && payrolls[0].status === 'Approved' && (
-                            <span className="px-6 py-2.5 bg-green-100 text-green-700 rounded-lg font-semibold flex items-center gap-2 border border-green-200">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                Approved
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className="px-6 py-2.5 bg-green-100 text-green-700 rounded-lg font-semibold flex items-center gap-2 border border-green-200">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    Approved
+                                </span>
+                                <button
+                                    onClick={unlockPayroll}
+                                    className="px-4 py-2 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 rounded-lg font-medium transition flex items-center gap-2 border border-yellow-300"
+                                    title="Revert to Draft"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
+                                    Unlock
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>

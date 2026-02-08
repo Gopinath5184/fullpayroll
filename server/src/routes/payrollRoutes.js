@@ -9,6 +9,9 @@ router.route('/run')
 router.route('/approve')
     .put(protect, authorize('HR Admin'), approvePayroll);
 
+router.route('/unlock')
+    .put(protect, authorize('HR Admin', 'Super Admin'), unlockPayroll);
+
 router.route('/')
     .get(protect, authorize('HR Admin', 'Super Admin', 'Finance'), getPayroll);
 
