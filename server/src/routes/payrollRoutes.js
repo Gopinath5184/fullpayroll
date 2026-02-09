@@ -12,8 +12,14 @@ router.route('/approve')
 router.route('/unlock')
     .put(protect, authorize('Super Admin'), unlockPayroll);
 
+const { disbursePayroll } = require('../controllers/payrollController');
+router.put('/disburse', protect, authorize('Payroll Admin', 'Finance', 'Super Admin'), disbursePayroll);
+
 router.route('/')
     .get(protect, authorize('HR Admin', 'Super Admin', 'Finance', 'Payroll Admin'), getPayroll);
+
+const { generateBankFile } = require('../controllers/bankController');
+router.get('/bank-transfer', protect, authorize('Payroll Admin', 'Finance'), generateBankFile);
 
 const { getPayslip, getEmployeePayslips } = require('../controllers/payslipController');
 router.route('/payslip/:id').get(protect, getPayslip);

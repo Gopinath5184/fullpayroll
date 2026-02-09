@@ -34,7 +34,9 @@ const seedData = async () => {
             Attendance.deleteMany(),
             SalaryComponent.deleteMany(),
             SalaryStructure.deleteMany(),
-            TaxDeclaration.deleteMany()
+            TaxDeclaration.deleteMany(),
+            require('./src/models/Payroll').deleteMany(),
+            require('./src/models/AuditLog').deleteMany()
         ]);
 
         // Drop legacy indices if they exist to prevent seeder failures
@@ -83,6 +85,60 @@ const seedData = async () => {
             { name: 'Charlie Dave', email: 'charlie@payroll.com', role: 'Employee' }
         ];
 
+        console.log('Creating Salary Components...');
+        // Common Components
+        const basic = await SalaryComponent.create({ organization: org._id, name: 'Basic Pay', type: 'Earning', calculationType: 'Flat Amount', value: 0 }); // Value overridden in structure
+        const hra = await SalaryComponent.create({ organization: org._id, name: 'HRA', type: 'Earning', calculationType: 'Percentage of Basic', value: 0 });
+        const medical = await SalaryComponent.create({ organization: org._id, name: 'Medical Allowance', type: 'Earning', calculationType: 'Flat Amount', value: 0 });
+        const special = await SalaryComponent.create({ organization: org._id, name: 'Special Allowance', type: 'Earning', calculationType: 'Flat Amount', value: 0 });
+
+        // Deductions
+        const pf = await SalaryComponent.create({ organization: org._id, name: 'Provident Fund', type: 'Deduction', calculationType: 'Percentage of Basic', value: 12 });
+        const tax = await SalaryComponent.create({ organization: org._id, name: 'Income Tax', type: 'Deduction', calculationType: 'Flat Amount', value: 0 });
+
+        console.log('Creating Salary Structures...');
+
+        // 1. Executive Structure
+        const executiveStructure = await SalaryStructure.create({
+            organization: org._id,
+            name: 'Executive Structure',
+            description: 'For Top Management and Admins',
+            components: [
+                { component: basic._id, calculationType: 'Flat Amount', value: 80000 },
+                { component: hra._id, calculationType: 'Percentage of Basic', value: 50 },
+                { component: medical._id, calculationType: 'Flat Amount', value: 5000 },
+                { component: special._id, calculationType: 'Flat Amount', value: 25000 },
+                { component: pf._id, calculationType: 'Percentage of Basic', value: 12 },
+                { component: tax._id, calculationType: 'Flat Amount', value: 5000 }
+            ]
+        });
+
+        // 2. Manager Structure
+        const managerStructure = await SalaryStructure.create({
+            organization: org._id,
+            name: 'Manager Structure',
+            description: 'For HR and Finance Leads',
+            components: [
+                { component: basic._id, calculationType: 'Flat Amount', value: 50000 },
+                { component: hra._id, calculationType: 'Percentage of Basic', value: 50 },
+                { component: medical._id, calculationType: 'Flat Amount', value: 3000 },
+                { component: pf._id, calculationType: 'Percentage of Basic', value: 12 }
+            ]
+        });
+
+        // 3. Staff Structure
+        const staffStructure = await SalaryStructure.create({
+            organization: org._id,
+            name: 'Staff Structure',
+            description: 'For Standard Employees',
+            components: [
+                { component: basic._id, calculationType: 'Flat Amount', value: 25000 },
+                { component: hra._id, calculationType: 'Percentage of Basic', value: 40 },
+                { component: medical._id, calculationType: 'Flat Amount', value: 2000 },
+                { component: pf._id, calculationType: 'Percentage of Basic', value: 12 }
+            ]
+        });
+
         console.log('Creating Users and Employee Profiles...');
         const createdUsers = [];
         for (const u of userData) {
@@ -98,6 +154,15 @@ const seedData = async () => {
         const departments = ['Engineering', 'HR', 'Finance', 'Sales', 'Operations'];
 
         for (const user of createdUsers) {
+            let assignedStructure;
+            if (user.role === 'Super Admin' || user.role === 'Payroll Admin') {
+                assignedStructure = executiveStructure._id;
+            } else if (user.role === 'HR Admin' || user.role === 'Finance') {
+                assignedStructure = managerStructure._id;
+            } else {
+                assignedStructure = staffStructure._id;
+            }
+
             const emp = await Employee.create({
                 user: user._id,
                 organization: org._id,
@@ -106,6 +171,7 @@ const seedData = async () => {
                 department: departments[Math.floor(Math.random() * departments.length)],
                 dateOfJoining: new Date(new Date().setMonth(new Date().getMonth() - 6)),
                 status: 'Active',
+                salaryStructure: assignedStructure,
                 taxRegime: Math.random() > 0.5 ? 'New' : 'Old',
                 paymentDetails: {
                     bankName: 'Global Bank',
@@ -116,26 +182,6 @@ const seedData = async () => {
             });
             employees.push(emp);
         }
-
-        console.log('Creating Salary Components...');
-        const basic = await SalaryComponent.create({ organization: org._id, name: 'Basic Pay', type: 'Earning', calculationType: 'Flat Amount', value: 25000 });
-        const hra = await SalaryComponent.create({ organization: org._id, name: 'HRA', type: 'Earning', calculationType: 'Percentage of Basic', value: 50 });
-        const medical = await SalaryComponent.create({ organization: org._id, name: 'Medical Allowance', type: 'Earning', calculationType: 'Flat Amount', value: 2000 });
-        const pf = await SalaryComponent.create({ organization: org._id, name: 'Provident Fund', type: 'Deduction', calculationType: 'Percentage of Basic', value: 12 });
-        const esi = await SalaryComponent.create({ organization: org._id, name: 'ESI', type: 'Deduction', calculationType: 'Flat Amount', value: 200 });
-
-        console.log('Creating Salary Structures...');
-        await SalaryStructure.create({
-            organization: org._id,
-            name: 'Standard Structure',
-            description: 'Default structure for most employees',
-            components: [
-                { component: basic._id, calculationType: 'Flat Amount', value: 30000 },
-                { component: hra._id, calculationType: 'Percentage of Basic', value: 40 },
-                { component: medical._id, calculationType: 'Flat Amount', value: 1250 },
-                { component: pf._id, calculationType: 'Percentage of Basic', value: 12 }
-            ]
-        });
 
         console.log('Creating Attendance Records (Last 30 Days)...');
         const today = new Date();

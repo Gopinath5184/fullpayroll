@@ -80,8 +80,8 @@ const runPayroll = async (req, res) => {
         await generatePayrollBatch(employees, month, year, organization, statutory, res, req.user._id, req.ip);
 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Payroll processing failed' });
+        console.error('Payroll processing error:', error);
+        res.status(500).json({ message: 'Payroll processing failed', error: error.message });
     }
 };
 
@@ -102,6 +102,7 @@ const generatePayrollBatch = async (employees, month, year, organization, statut
             console.log(`No salary structure found for ${emp.employeeId}`);
             continue;
         }
+        console.log(`Processing ${emp.employeeId} (${emp.user?.name}) with Structure: ${structure.name}`);
 
         // Attendance Logic
         const startDate = new Date(year, month - 1, 1);
@@ -281,4 +282,30 @@ const unlockPayroll = async (req, res) => {
     res.json({ message: 'Payroll unlocked. Status reverted to Draft.' });
 };
 
-module.exports = { runPayroll, getPayroll, approvePayroll, unlockPayroll };
+// @desc    Mark Payroll as Paid (Disburse)
+// @route   PUT /api/payroll/disburse
+// @access  Private (Finance/Admin)
+const disbursePayroll = async (req, res) => {
+    const { month, year, paymentDate, transactionId } = req.body;
+
+    if (!month || !year) {
+        return res.status(400).json({ message: 'Month and Year are required' });
+    }
+
+    const result = await Payroll.updateMany(
+        { organization: req.user.organization, month, year, status: 'Approved' },
+        {
+            status: 'Paid',
+            paymentDate: paymentDate || new Date(),
+            transactionId: transactionId || `TXN-${Date.now()}`
+        }
+    );
+
+    if (result.modifiedCount === 0) {
+        return res.status(404).json({ message: 'No approved payroll records found to disburse' });
+    }
+
+    res.json({ message: `Successfully disbursed salaries for ${result.modifiedCount} employees` });
+};
+
+module.exports = { runPayroll, getPayroll, approvePayroll, unlockPayroll, disbursePayroll };
