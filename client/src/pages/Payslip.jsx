@@ -45,6 +45,7 @@ const Payslip = () => {
                         <p><span className="font-bold">PAN:</span> {employee.paymentDetails?.panNumber || 'N/A'}</p>
                         <p><span className="font-bold">Bank Account:</span> {employee.paymentDetails?.accountNumber || 'N/A'}</p>
                         <p><span className="font-bold">Days Worked:</span> {payslip.presentDays} / {payslip.workingDays}</p>
+                        <p><span className="font-bold">OT Hours:</span> {payslip.overtimeHours || 0}</p>
                     </div>
                 </div>
 

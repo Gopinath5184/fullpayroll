@@ -80,8 +80,8 @@ const runPayroll = async (req, res) => {
         await generatePayrollBatch(employees, month, year, organization, statutory, res, req.user._id, req.ip);
 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Payroll processing failed' });
+        console.error('Payroll processing error:', error);
+        res.status(500).json({ message: 'Payroll processing failed', error: error.message });
     }
 };
 
@@ -102,18 +102,31 @@ const generatePayrollBatch = async (employees, month, year, organization, statut
             console.log(`No salary structure found for ${emp.employeeId}`);
             continue;
         }
+        console.log(`Processing ${emp.employeeId} (${emp.user?.name}) with Structure: ${structure.name}`);
 
         // Attendance Logic
         const startDate = new Date(year, month - 1, 1);
+        startDate.setHours(0, 0, 0, 0);
         const endDate = new Date(year, month, 0);
+        endDate.setHours(23, 59, 59, 999);
+
         const attendanceRecords = await Attendance.find({
             employee: emp._id,
             date: { $gte: startDate, $lte: endDate }
         });
 
-        // Calculate paid days: Total - LOP records
-        const lopCount = attendanceRecords.filter(r => r.status === 'Absent' || r.status === 'Loss of Pay').length;
+        // Calculate paid days: Total - (LOP records + Half Day reduction)
+        // Refinement: Count records where status is 'Absent' OR status is 'Loss of Pay' OR isLOP flag is true
+        const lopCount = attendanceRecords.filter(r =>
+            r.status === 'Absent' ||
+            r.status === 'Loss of Pay' ||
+            r.isLOP === true
+        ).length;
+
         const halfDayCount = attendanceRecords.filter(r => r.status === 'Half Day').length;
+
+        // Overtime Calculation
+        const totalOvertimeHours = attendanceRecords.reduce((sum, r) => sum + (r.overtimeHours || 0), 0);
 
         // If no records, assume full month present for demo/safety, or handle as per config
         const paidDays = attendanceRecords.length > 0 ? (totalDays - lopCount - (halfDayCount * 0.5)) : totalDays;
@@ -126,12 +139,15 @@ const generatePayrollBatch = async (employees, month, year, organization, statut
 
         // 1. Calculate Earnings (First pass for Basic used in percentages)
         let basicAmount = 0;
+        let perHourBasic = 0;
 
         // Identify Basic Component first
         const basicCompItem = structure.components.find(item => item.component?.name.toLowerCase().includes('basic'));
         if (basicCompItem) {
-            const rawBasic = basicCompItem.value || basicCompItem.component.value;
-            basicAmount = Math.round(rawBasic * payRatio);
+            const fullBasic = basicCompItem.value || basicCompItem.component.value;
+            basicAmount = Math.round(fullBasic * payRatio);
+            // Assuming 8 hours * 30 days = 240 hours per month for OT rate reference
+            perHourBasic = fullBasic / (totalDays * 8);
         }
 
         // Process all components
@@ -158,6 +174,13 @@ const generatePayrollBatch = async (employees, month, year, organization, statut
                 processedDeductions.push({ name: comp.name, amount: payableAmount });
             }
         });
+
+        // 1.5. Overtime Pay Calculation (Typical rate: 1.5x of hourly basic)
+        const overtimePay = Math.round(totalOvertimeHours * (perHourBasic * 1.5));
+        if (overtimePay > 0) {
+            processedEarnings.push({ name: 'Overtime Pay', amount: overtimePay });
+            gross += overtimePay;
+        }
 
         // 2. Statutory Deductions
         // PF Calculation (Typically on Basic or Gross up to limit)
@@ -200,9 +223,11 @@ const generatePayrollBatch = async (employees, month, year, organization, statut
                 workingDays: totalDays,
                 presentDays: paidDays,
                 lopDays,
+                overtimeHours: totalOvertimeHours,
                 earnings: processedEarnings,
                 deductions: processedDeductions,
                 grossSalary: gross,
+                overtimePay,
                 totalDeductions,
                 netSalary,
                 status: 'Draft'
@@ -245,4 +270,42 @@ const approvePayroll = async (req, res) => {
     res.json({ message: 'Payroll approved for period' });
 };
 
-module.exports = { runPayroll, getPayroll, approvePayroll };
+// @desc    Unlock/Revert Payroll to Draft
+// @route   PUT /api/payroll/unlock
+// @access  Private (Admin)
+const unlockPayroll = async (req, res) => {
+    const { month, year } = req.body;
+    await Payroll.updateMany(
+        { organization: req.user.organization, month, year },
+        { status: 'Draft' }
+    );
+    res.json({ message: 'Payroll unlocked. Status reverted to Draft.' });
+};
+
+// @desc    Mark Payroll as Paid (Disburse)
+// @route   PUT /api/payroll/disburse
+// @access  Private (Finance/Admin)
+const disbursePayroll = async (req, res) => {
+    const { month, year, paymentDate, transactionId } = req.body;
+
+    if (!month || !year) {
+        return res.status(400).json({ message: 'Month and Year are required' });
+    }
+
+    const result = await Payroll.updateMany(
+        { organization: req.user.organization, month, year, status: 'Approved' },
+        {
+            status: 'Paid',
+            paymentDate: paymentDate || new Date(),
+            transactionId: transactionId || `TXN-${Date.now()}`
+        }
+    );
+
+    if (result.modifiedCount === 0) {
+        return res.status(404).json({ message: 'No approved payroll records found to disburse' });
+    }
+
+    res.json({ message: `Successfully disbursed salaries for ${result.modifiedCount} employees` });
+};
+
+module.exports = { runPayroll, getPayroll, approvePayroll, unlockPayroll, disbursePayroll };

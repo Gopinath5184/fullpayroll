@@ -18,7 +18,7 @@ const Sidebar = () => {
         { name: 'Payroll Profile', href: '/payroll-profiles', icon: FaCalculator, roles: ['HR Admin'] },
         { name: 'Salary Config', href: '/salary-config', icon: FaMoneyBillWave, roles: ['Super Admin', 'Payroll Admin', 'HR Admin'] },
         { name: 'Attendance', href: '/attendance', icon: FaCalendarCheck, roles: ['Super Admin', 'Payroll Admin', 'HR Admin', 'Employee'] },
-        { name: 'Run Payroll', href: '/payroll', icon: FaFileInvoiceDollar, roles: ['HR Admin'] },
+        { name: 'Run Payroll', href: '/payroll', icon: FaFileInvoiceDollar, roles: ['Super Admin', 'Payroll Admin', 'HR Admin'] },
         { name: 'My Payslips', href: '/my-payslips', icon: FaFileInvoiceDollar, roles: ['Employee'] },
         { name: 'Tax Declaration', href: '/tax-declaration', icon: FaFileContract, roles: ['HR Admin'] },
         { name: 'Reports', href: '/reports', icon: FaChartBar, roles: ['Super Admin', 'Payroll Admin', 'Finance'] },

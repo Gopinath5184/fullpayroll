@@ -46,7 +46,7 @@ function App() {
               } />
               <Route path="/attendance" element={<Attendance />} />
               <Route path="/payroll" element={
-                <ProtectedRoute allowedRoles={['HR Admin']}>
+                <ProtectedRoute allowedRoles={['Super Admin', 'Payroll Admin', 'HR Admin']}>
                   <PayrollProcess />
                 </ProtectedRoute>
               } />

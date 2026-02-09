@@ -1,37 +1,70 @@
 import { useState, useEffect, useContext } from 'react';
 import api from '../utils/api';
 import AuthContext from '../context/AuthContext';
-import { FaCalendarCheck, FaCheckCircle, FaTimesCircle, FaClock, FaFilter } from 'react-icons/fa';
+import { FaCalendarCheck, FaCheckCircle, FaTimesCircle, FaClock, FaFilter, FaLock, FaLockOpen, FaUserSlash, FaMoneyBillWave } from 'react-icons/fa';
 
 const Attendance = () => {
     const { user } = useContext(AuthContext);
     const [attendance, setAttendance] = useState([]);
     const [employees, setEmployees] = useState([]);
-    const [selectedEmployee, setSelectedEmployee] = useState('');
+    const [viewDate, setViewDate] = useState(new Date().toISOString().split('T')[0]);
+    const [isClosed, setIsClosed] = useState(false);
+    const [loading, setLoading] = useState(false);
+
+    // Filter states for Employee View
     const [month, setMonth] = useState(new Date().getMonth() + 1);
     const [year, setYear] = useState(new Date().getFullYear());
 
     useEffect(() => {
-        fetchAttendance();
         if (user.role !== 'Employee') {
-            fetchEmployees();
+            fetchDailyReport();
+            fetchClosureStatus(viewDate);
+        } else {
+            fetchMyAttendance();
+            fetchClosureStatus(new Date());
         }
-    }, [month, year, selectedEmployee]);
+    }, [viewDate, month, year]);
 
-    const fetchEmployees = async () => {
+    const fetchDailyReport = async () => {
         try {
-            const { data } = await api.get('/employees');
-            setEmployees(data);
+            setLoading(true);
+            // 1. Fetch All Active Employees
+            const { data: allEmployees } = await api.get('/employees');
+
+            // 2. Fetch Attendance for the specific date
+            const dateObj = new Date(viewDate);
+            const { data: records } = await api.get('/attendance', {
+                params: {
+                    month: dateObj.getMonth() + 1,
+                    year: dateObj.getFullYear()
+                }
+            });
+
+            // Filter for the specific day
+            const daysRecords = records.filter(r =>
+                new Date(r.date).toDateString() === dateObj.toDateString()
+            );
+
+            // 3. Merge Data
+            const report = allEmployees.map(emp => {
+                const record = daysRecords.find(r => r.employee._id === emp._id);
+                return {
+                    employee: emp,
+                    attendance: record || null
+                };
+            });
+
+            setEmployees(report);
         } catch (error) {
-            console.error(error);
+            console.error('Error fetching daily report', error);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const fetchAttendance = async () => {
+    const fetchMyAttendance = async () => {
         try {
             const params = { month, year };
-            if (selectedEmployee) params.employeeId = selectedEmployee;
-
             const { data } = await api.get('/attendance', { params });
             setAttendance(data);
         } catch (error) {
@@ -39,78 +72,152 @@ const Attendance = () => {
         }
     };
 
-    const handleMarkAttendance = async (status) => {
+    const fetchClosureStatus = async (dateInput) => {
         try {
-            await api.post('/attendance', {
-                date: new Date(),
-                status,
-                checkIn: status === 'Present' ? new Date() : null
-            });
-            fetchAttendance();
+            const { data } = await api.get('/attendance/closure-status', { params: { date: dateInput } });
+            setIsClosed(data.isClosed);
         } catch (error) {
-            console.error('Error marking attendance', error);
+            console.error('Error fetching closure status', error);
         }
     };
 
+    const handleMarkStatus = async (employeeId, status, isLOP = false) => {
+        if (isClosed) return alert('Attendance is closed for this date.');
+
+        try {
+            await api.post('/attendance', {
+                employeeId,
+                date: viewDate,
+                status,
+                checkIn: status === 'Present' ? new Date(viewDate).setHours(9, 0, 0) : null,
+                checkOut: status === 'Present' ? new Date(viewDate).setHours(18, 0, 0) : null,
+                isLOP
+            });
+            fetchDailyReport();
+        } catch (error) {
+            console.error('Error updating status', error);
+            alert('Failed to update status');
+        }
+    };
+
+    const handleUpdateOT = async (recordId, otHours) => {
+        try {
+            // Find employee ID from current state
+            const target = employees.find(e => e.attendance && e.attendance._id === recordId);
+            if (!target) return;
+
+            await api.post('/attendance', {
+                employeeId: target.employee._id,
+                date: viewDate,
+                overtimeHours: parseFloat(otHours) || 0
+            });
+            // Optimistic update or refetch
+            fetchDailyReport();
+        } catch (error) {
+            console.error('Error updating OT', error);
+        }
+    };
+
+    const handleToggleClosure = async (close) => {
+        try {
+            setLoading(true);
+            const endpoint = close ? '/attendance/close' : '/attendance/reopen';
+            await api.post(endpoint, { date: viewDate });
+            setIsClosed(close);
+            alert(`Attendance ${close ? 'closed' : 'reopened'} successfully.`);
+        } catch (error) {
+            console.error('Closure action failed', error);
+            alert('Action failed');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // --- RENDER FOR EMPLOYEE ---
+    if (user.role === 'Employee') {
+        const handleSelfMark = async (status) => {
+            if (isClosed) return alert('Attendance closed.');
+            try {
+                await api.post('/attendance', {
+                    date: new Date(),
+                    status,
+                    checkIn: status === 'Present' ? new Date() : null
+                });
+                fetchMyAttendance();
+            } catch (e) { alert(e.response?.data?.message || 'Error'); }
+        };
+
+        return (
+            <div className="space-y-6">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                    <h1 className="text-2xl font-bold mb-4">My Attendance</h1>
+                    <div className="flex gap-4 mb-6">
+                        <button onClick={() => handleSelfMark('Present')} disabled={isClosed} className="bg-green-600 text-white px-6 py-2 rounded disabled:opacity-50">Check In</button>
+                        <button onClick={() => handleSelfMark('Leave')} disabled={isClosed} className="bg-red-500 text-white px-6 py-2 rounded disabled:opacity-50">Mark Leave</button>
+                    </div>
+                </div>
+                <div className="bg-white rounded-xl shadow border overflow-hidden">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Date</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Check In</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">OT Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {attendance.map(r => (
+                                <tr key={r._id}>
+                                    <td className="px-6 py-4">{new Date(r.date).toLocaleDateString()}</td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-2 py-1 rounded text-xs text-white ${r.status === 'Present' ? 'bg-green-500' : 'bg-red-500'}`}>{r.status}</span>
+                                    </td>
+                                    <td className="px-6 py-4">{r.checkIn ? new Date(r.checkIn).toLocaleTimeString() : '-'}</td>
+                                    <td className="px-6 py-4">{r.overtimeHours}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    }
+
+    // --- RENDER FOR ADMIN ---
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between">
+            <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-800">Attendance</h1>
-                    <p className="text-gray-500 mt-1">Track daily check-ins and leaves</p>
+                    <h1 className="text-3xl font-bold text-gray-800">Attendance Manager</h1>
+                    <p className="text-gray-500">Manage daily attendance for all employees</p>
+                </div>
+                <div className="flex gap-3">
+                    {isClosed ? (
+                        <button onClick={() => handleToggleClosure(false)} className="flex items-center gap-2 bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600">
+                            <FaLockOpen /> Reopen Day
+                        </button>
+                    ) : (
+                        <button onClick={() => handleToggleClosure(true)} className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                            <FaLock /> Close Day
+                        </button>
+                    )}
                 </div>
             </div>
 
-            {/* Mark Attendance Card */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 transition-all hover:shadow-md">
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="flex items-center gap-4">
-                        <div className="bg-blue-100 p-3 rounded-full">
-                            <FaClock className="text-blue-600 text-xl" />
-                        </div>
-                        <div>
-                            <h2 className="text-lg font-bold text-gray-800">Mark Today's Attendance</h2>
-                            <p className="text-sm text-gray-500 font-medium">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                        </div>
-                    </div>
-                    <div className="flex gap-3">
-                        <button onClick={() => handleMarkAttendance('Present')} className="flex items-center gap-2 bg-green-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-green-700 transition shadow-sm hover:shadow active:transform active:scale-95">
-                            <FaCheckCircle /> Check In
-                        </button>
-                        <button onClick={() => handleMarkAttendance('Leave')} className="flex items-center gap-2 bg-red-500 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-red-600 transition shadow-sm hover:shadow active:transform active:scale-95">
-                            <FaTimesCircle /> Mark Leave
-                        </button>
-                    </div>
-                </div>
+            {/* Date Selection Bar */}
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center gap-4">
+                <label className="font-semibold text-gray-700">Select Date:</label>
+                <input
+                    type="date"
+                    value={viewDate}
+                    onChange={(e) => setViewDate(e.target.value)}
+                    className="border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+                <span className="ml-auto text-sm text-gray-500">
+                    Status: {isClosed ? <span className="text-red-600 font-bold">CLOSED</span> : <span className="text-green-600 font-bold">OPEN</span>}
+                </span>
             </div>
-
-            {/* Filters (Admin Only) */}
-            {user.role !== 'Employee' && (
-                <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-                    <div className="flex items-center gap-2 mb-4 text-gray-700 font-semibold">
-                        <FaFilter />
-                        <span>Filter Records</span>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <select value={selectedEmployee} onChange={e => setSelectedEmployee(e.target.value)} className="border border-gray-300 bg-gray-50 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
-                            <option value="">All Employees</option>
-                            {employees.map(emp => (
-                                <option key={emp._id} value={emp._id}>{emp.user?.name} ({emp.employeeId})</option>
-                            ))}
-                        </select>
-                        <select value={month} onChange={e => setMonth(e.target.value)} className="border border-gray-300 bg-gray-50 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
-                            {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                                <option key={m} value={m}>Month {m}</option>
-                            ))}
-                        </select>
-                        <select value={year} onChange={e => setYear(e.target.value)} className="border border-gray-300 bg-gray-50 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
-                            <option value="2024">2024</option>
-                            <option value="2025">2025</option>
-                            <option value="2026">2026</option>
-                        </select>
-                    </div>
-                </div>
-            )}
 
             {/* Attendance Table */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -118,52 +225,83 @@ const Attendance = () => {
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
-                                {user.role !== 'Employee' && <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Employee</th>}
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Check In</th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Check Out</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Employee</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Check In</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">OT Hours</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {attendance.length > 0 ? (
-                                attendance.map((record, index) => (
-                                    <tr key={record._id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                            {new Date(record.date).toLocaleDateString()}
-                                        </td>
-                                        {user.role !== 'Employee' && (
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                                {record.employee?.employeeId}
-                                            </td>
-                                        )}
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full items-center gap-1 ${record.status === 'Present' ? 'bg-green-100 text-green-700' :
-                                                    record.status === 'Absent' ? 'bg-red-100 text-red-700' :
-                                                        'bg-yellow-100 text-yellow-700'
-                                                }`}>
-                                                <span className={`w-2 h-2 rounded-full ${record.status === 'Present' ? 'bg-green-500' :
-                                                        record.status === 'Absent' ? 'bg-red-500' :
-                                                            'bg-yellow-500'
-                                                    }`}></span>
-                                                {record.status}
+                            {employees.map(({ employee, attendance: record }) => (
+                                <tr key={employee._id} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4">
+                                        <div className="font-medium text-gray-900">{employee.user?.name}</div>
+                                        <div className="text-xs text-gray-500">{employee.employeeId}</div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        {record ? (
+                                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                ${record.status === 'Present' ? 'bg-green-100 text-green-800' :
+                                                    record.status === 'Absent' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                {record.status} {record.isLOP ? '(LOP)' : ''}
                                             </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
-                                            {record.checkIn ? new Date(record.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
-                                            {record.checkOut ? new Date(record.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={user.role !== 'Employee' ? 5 : 4} className="px-6 py-10 text-center text-gray-500">
-                                        No attendance records found for this selection.
+                                        ) : (
+                                            <span className="text-gray-400 italic">Not Marked</span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-500">
+                                        {record?.checkIn ? new Date(record.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        {record ? (
+                                            <input
+                                                type="number"
+                                                defaultValue={record.overtimeHours || 0}
+                                                onBlur={(e) => handleUpdateOT(record._id, e.target.value)}
+                                                className="w-16 border rounded px-2 py-1 text-sm"
+                                                disabled={isClosed}
+                                            />
+                                        ) : '-'}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleMarkStatus(employee._id, 'Present')}
+                                                disabled={isClosed}
+                                                className="p-2 text-green-600 hover:bg-green-50 rounded"
+                                                title="Mark Present"
+                                            >
+                                                <FaCheckCircle />
+                                            </button>
+                                            <button
+                                                onClick={() => handleMarkStatus(employee._id, 'Absent', true)} // Absent is always LOP
+                                                disabled={isClosed}
+                                                className="p-2 text-red-600 hover:bg-red-50 rounded"
+                                                title="Mark Absent"
+                                            >
+                                                <FaTimesCircle />
+                                            </button>
+                                            <button
+                                                onClick={() => handleMarkStatus(employee._id, 'Leave', false)}
+                                                disabled={isClosed}
+                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                                                title="Paid Leave"
+                                            >
+                                                <FaCalendarCheck />
+                                            </button>
+                                            <button
+                                                onClick={() => handleMarkStatus(employee._id, 'Leave', true)}
+                                                disabled={isClosed}
+                                                className="p-2 text-orange-600 hover:bg-orange-50 rounded"
+                                                title="Unpaid Leave (LOP)"
+                                            >
+                                                <FaMoneyBillWave />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
-                            )}
+                            ))}
                         </tbody>
                     </table>
                 </div>

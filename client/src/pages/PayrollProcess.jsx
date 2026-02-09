@@ -21,6 +21,38 @@ const PayrollProcess = () => {
         }
     };
 
+    // NEW FUNCTION
+    const disbursePayroll = async () => {
+        if (!confirm('Are you sure you want to mark these salaries as PAID? This action cannot be undone.')) return;
+        try {
+            const { data } = await api.put('/payroll/disburse', { month, year });
+            setMessage(data.message);
+            fetchPayroll();
+        } catch (error) {
+            console.error(error);
+            setMessage('Error disbursing payroll');
+        }
+    };
+
+    const downloadBankAdvice = async () => {
+        try {
+            const response = await api.get('/payroll/bank-transfer', {
+                params: { month, year },
+                responseType: 'blob',
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Bank_Advice_${month}_${year}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            console.error(error);
+            setMessage('Error downloading Bank Advice');
+        }
+    };
+
     const runPayroll = async () => {
         setLoading(true);
         try {
@@ -28,7 +60,8 @@ const PayrollProcess = () => {
             setMessage(data.message);
             fetchPayroll();
         } catch (error) {
-            setMessage('Error running payroll');
+            console.error('Payroll error:', error);
+            setMessage(error.response?.data?.message || 'Error running payroll');
         } finally {
             setLoading(false);
         }
@@ -42,6 +75,17 @@ const PayrollProcess = () => {
             fetchPayroll();
         } catch (error) {
             setMessage('Error approving payroll');
+        }
+    };
+
+    const unlockPayroll = async () => {
+        if (!confirm('Are you sure you want to unlock? This will revert status to Draft.')) return;
+        try {
+            await api.put('/payroll/unlock', { month, year });
+            setMessage('Payroll Unlocked. Status reverted to Draft.');
+            fetchPayroll();
+        } catch (error) {
+            setMessage('Error unlocking payroll');
         }
     };
 
@@ -110,10 +154,47 @@ const PayrollProcess = () => {
                         )}
 
                         {payrolls.length > 0 && payrolls[0].status === 'Approved' && (
-                            <span className="px-6 py-2.5 bg-green-100 text-green-700 rounded-lg font-semibold flex items-center gap-2 border border-green-200">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                Approved
-                            </span>
+                            <>
+                                <button
+                                    onClick={downloadBankAdvice}
+                                    className="px-6 py-2.5 bg-indigo-50 text-indigo-700 rounded-lg font-medium hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center gap-2 border border-indigo-200"
+                                    title="Download Bank Transfer CSV"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                    Bank Advice
+                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={disbursePayroll}
+                                        className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 shadow-lg shadow-blue-500/30 flex items-center gap-2"
+                                        title="Mark as Paid"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        Mark as Paid
+                                    </button>
+                                    <span className="px-6 py-2.5 bg-green-100 text-green-700 rounded-lg font-semibold flex items-center gap-2 border border-green-200">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        Approved
+                                    </span>
+                                    <button
+                                        onClick={unlockPayroll}
+                                        className="px-4 py-2 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 rounded-lg font-medium transition flex items-center gap-2 border border-yellow-300"
+                                        title="Revert to Draft"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
+                                        Unlock
+                                    </button>
+                                </div>
+                            </>
+                        )}
+
+                        {payrolls.length > 0 && payrolls[0].status === 'Paid' && (
+                            <div className="flex items-center gap-2">
+                                <span className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-semibold flex items-center gap-2 border border-gray-200">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                                    Paid
+                                </span>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -147,7 +228,8 @@ const PayrollProcess = () => {
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Work Days</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Days (P/W)</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">OT Hours</th>
                                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Gross</th>
                                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Deductions</th>
                                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Net Pay</th>
@@ -163,6 +245,9 @@ const PayrollProcess = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {item.presentDays} / {item.workingDays}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-indigo-600 font-medium">
+                                            {item.overtimeHours || 0} hrs
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                             ₹{item.grossSalary.toLocaleString()}

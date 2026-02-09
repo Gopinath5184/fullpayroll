@@ -113,8 +113,10 @@ const PayrollProfileForm = () => {
         if (!formData.salaryStructureId) newErrors.salaryStructureId = 'Salary structure is required';
         if (!formData.bankDetails.bankName) newErrors.bankName = 'Bank name is required';
         if (formData.bankDetails.accountNumber.length < 9) newErrors.accountNumber = 'Account number too short';
-        if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(formData.bankDetails.ifscCode)) newErrors.ifscCode = 'Invalid IFSC format';
-        if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.PAN)) newErrors.PAN = 'Invalid PAN format';
+
+        // Relaxed Validation: Just check length
+        if (formData.bankDetails.ifscCode.length !== 11) newErrors.ifscCode = 'IFSC must be 11 characters';
+        if (formData.PAN.length !== 10) newErrors.PAN = 'PAN must be 10 characters';
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
