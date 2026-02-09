@@ -20,7 +20,7 @@ const Sidebar = () => {
         { name: 'Attendance', href: '/attendance', icon: FaCalendarCheck, roles: ['Super Admin', 'Payroll Admin', 'HR Admin', 'Employee'] },
         { name: 'Run Payroll', href: '/payroll', icon: FaFileInvoiceDollar, roles: ['Super Admin', 'Payroll Admin', 'HR Admin'] },
         { name: 'My Payslips', href: '/my-payslips', icon: FaFileInvoiceDollar, roles: ['Employee'] },
-        { name: 'Tax Declaration', href: '/tax-declaration', icon: FaFileContract, roles: ['HR Admin'] },
+        { name: 'Tax Declaration', href: '/tax-declaration', icon: FaFileContract, roles: ['HR Admin', 'Employee'] },
         { name: 'Reports', href: '/reports', icon: FaChartBar, roles: ['Super Admin', 'Payroll Admin', 'Finance'] },
     ];
 
