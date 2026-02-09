@@ -4,6 +4,8 @@ const Attendance = require('../models/Attendance');
 const SalaryStructure = require('../models/SalaryStructure');
 const Statutory = require('../models/Statutory');
 const AuditLog = require('../models/AuditLog');
+const TaxDeclaration = require('../models/TaxDeclaration');
+const { calculateTax } = require('../utils/taxCalculator');
 
 // Helper to calculate days in month
 const getDaysInMonth = (month, year) => new Date(year, month, 0).getDate();
@@ -206,6 +208,47 @@ const generatePayrollBatch = async (employees, month, year, organization, statut
             if (slab && slab.taxAmount > 0) {
                 processedDeductions.push({ name: 'Professional Tax', amount: slab.taxAmount });
             }
+        }
+
+        // --- 3. Income Tax (TDS) Calculation ---
+        try {
+            // Determine Financial Year
+            const currentYear = parseInt(year);
+            const currentMonth = parseInt(month);
+            const fyStart = currentMonth > 3 ? currentYear : currentYear - 1;
+            const financialYear = `${fyStart}-${fyStart + 1}`;
+
+            // Fetch Declaration
+            const declaration = await TaxDeclaration.findOne({
+                employee: emp._id,
+                financialYear
+            });
+
+            // Project Annual Salary (Simple Projection for Demo: Gross * 12)
+            // In real world: YTD Earnings + Current Gross + (Remaining Months * Current Gross)
+            const projectedAnnualGross = gross * 12;
+
+            // Prepare Declaration Data
+            const declarations = {
+                section80C: declaration?.section80C?.reduce((sum, item) => sum + (item.amount || 0), 0) || 0,
+                section80D: declaration?.section80D?.amount || 0,
+                hra: declaration?.hra?.rentAmount || 0, // Need accurate HRA calc details
+                other: 0
+            };
+
+            // Calculate Annual Tax
+            const annualTax = calculateTax(projectedAnnualGross, emp.taxRegime || 'New', declarations);
+
+            // Calculate Monthly TDS (Simple: Annual / 12)
+            // Ideally: (Annual Tax - Tax Paid YTD) / Remaining Months
+            const monthlyTDS = Math.round(annualTax / 12);
+
+            if (monthlyTDS > 0) {
+                processedDeductions.push({ name: 'Income Tax (TDS)', amount: monthlyTDS });
+            }
+
+        } catch (taxError) {
+            console.error('Tax Calculation Error:', taxError);
         }
 
         // Sum Deductions

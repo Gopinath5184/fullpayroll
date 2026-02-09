@@ -1,8 +1,12 @@
 {
   "name": "client",
-  "private": true,
   "version": "0.0.0",
+  "private": true,
+  "description": "This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.",
+  "license": "ISC",
+  "author": "",
   "type": "module",
+  "main": "eslint.config.js",
   "scripts": {
     "dev": "vite",
     "start": "vite",
@@ -13,6 +17,7 @@
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.18",
     "axios": "^1.13.4",
+    "dotenv": "^17.2.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-icons": "^5.5.0",
