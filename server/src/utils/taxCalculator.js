@@ -1,3 +1,4 @@
+// Module 8: Tax Management System - Tax Calculator Utility
 const calculateTax = (annualGrossSalary, regime, declarations = {}) => {
     let taxableIncome = annualGrossSalary;
 
