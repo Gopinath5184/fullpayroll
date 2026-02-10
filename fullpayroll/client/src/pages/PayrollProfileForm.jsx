@@ -41,7 +41,7 @@ const PayrollProfileForm = () => {
             const [empRes, structRes, profileRes] = await Promise.all([
                 api.get(`/employees/${employeeId}`),
                 api.get('/salary/structures'),
-                api.get(`/payroll-profile/${employeeId}`).catch(() => ({ data: null }))
+                api.get(`/payroll-profile/${employeeId}`)
             ]);
 
             setEmployee(empRes.data);

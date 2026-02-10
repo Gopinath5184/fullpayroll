@@ -9,6 +9,11 @@ const createPayrollProfile = async (req, res) => {
     try {
         const { employeeId, salaryStructureId, bankDetails, taxRegime, PAN, earnings, deductions, grossSalary, netSalary } = req.body;
 
+        // Validate organization
+        if (!req.user.organization) {
+            return res.status(400).json({ message: 'User organization not found. Please contact administrator.' });
+        }
+
         // Check for duplicate
         const existing = await PayrollProfile.findOne({ employee: employeeId });
         if (existing) {
@@ -35,7 +40,9 @@ const createPayrollProfile = async (req, res) => {
         res.status(201).json(profile);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server Error' });
+        const fs = require('fs');
+        fs.appendFileSync('server_error.log', `${new Date().toISOString()} - ${error.stack}\n`);
+        res.status(500).json({ message: error.message, error: error.toString() });
     }
 };
 
@@ -54,7 +61,7 @@ const getPayrollProfile = async (req, res) => {
             .populate('salaryStructureId');
 
         if (!profile) {
-            return res.status(404).json({ message: 'Payroll profile not found' });
+            return res.json(null);
         }
 
         res.json(profile);
