@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 import api from '../utils/api';
 import AuthContext from '../context/AuthContext';
-import { FaCalendarCheck, FaCheckCircle, FaTimesCircle, FaClock, FaFilter, FaLock, FaLockOpen, FaUserSlash, FaMoneyBillWave } from 'react-icons/fa';
+import { FaCalendarCheck, FaCheckCircle, FaTimesCircle, FaClock, FaFilter, FaLock, FaLockOpen, FaUserSlash, FaMoneyBillWave, FaUmbrellaBeach } from 'react-icons/fa';
 
 const Attendance = () => {
     const { user } = useContext(AuthContext);
@@ -171,7 +171,10 @@ const Attendance = () => {
                                 <tr key={r._id}>
                                     <td className="px-6 py-4">{new Date(r.date).toLocaleDateString()}</td>
                                     <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded text-xs text-white ${r.status === 'Present' ? 'bg-green-500' : 'bg-red-500'}`}>{r.status}</span>
+                                        <span className={`px-2 py-1 rounded text-xs text-white ${r.status === 'Present' ? 'bg-green-500' :
+                                                r.status === 'Holiday' ? 'bg-purple-500' :
+                                                    'bg-red-500'
+                                            }`}>{r.status}</span>
                                     </td>
                                     <td className="px-6 py-4">{r.checkIn ? new Date(r.checkIn).toLocaleTimeString() : '-'}</td>
                                     <td className="px-6 py-4">{r.overtimeHours}</td>
@@ -243,7 +246,9 @@ const Attendance = () => {
                                         {record ? (
                                             <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
                                                 ${record.status === 'Present' ? 'bg-green-100 text-green-800' :
-                                                    record.status === 'Absent' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                    record.status === 'Absent' ? 'bg-red-100 text-red-800' :
+                                                        record.status === 'Holiday' ? 'bg-purple-100 text-purple-800' :
+                                                            'bg-yellow-100 text-yellow-800'}`}>
                                                 {record.status} {record.isLOP ? '(LOP)' : ''}
                                             </span>
                                         ) : (
@@ -297,6 +302,14 @@ const Attendance = () => {
                                                 title="Unpaid Leave (LOP)"
                                             >
                                                 <FaMoneyBillWave />
+                                            </button>
+                                            <button
+                                                onClick={() => handleMarkStatus(employee._id, 'Holiday', false)}
+                                                disabled={isClosed}
+                                                className="p-2 text-purple-600 hover:bg-purple-50 rounded"
+                                                title="Mark Holiday"
+                                            >
+                                                <FaUmbrellaBeach />
                                             </button>
                                         </div>
                                     </td>

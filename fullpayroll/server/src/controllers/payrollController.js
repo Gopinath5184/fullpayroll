@@ -118,22 +118,46 @@ const generatePayrollBatch = async (employees, month, year, organization, statut
             date: { $gte: startDate, $lte: endDate }
         });
 
-        // Calculate paid days: Total - (LOP records + Half Day reduction)
-        // Refinement: Count records where status is 'Absent' OR status is 'Loss of Pay' OR isLOP flag is true
-        const lopCount = attendanceRecords.filter(r =>
-            r.status === 'Absent' ||
-            r.status === 'Loss of Pay' ||
-            r.isLOP === true
-        ).length;
+        // Calculate paid days by counting actual paid attendance records
+        // Present, Leave (paid), Holiday = 1 full day each
+        // Half Day = 0.5 days
+        // AUTOMATION: Unmarked Sundays = 1 Paid Day
+        // Absent, LOP, or unmarked non-Sundays = 0 days (LOP)
 
-        const halfDayCount = attendanceRecords.filter(r => r.status === 'Half Day').length;
+        let calculatedPaidDays = 0;
+
+        for (let d = 1; d <= totalDays; d++) {
+            // Using getUTCDate() and getUTCDay() for consistency with attendance record dates
+            const currentDate = new Date(year, month - 1, d);
+
+            // Check if there's a record for this specific day
+            const record = attendanceRecords.find(r =>
+                new Date(r.date).getUTCDate() === d
+            );
+
+            if (record) {
+                if (record.status === 'Present') calculatedPaidDays += 1;
+                else if (record.status === 'Leave' && record.isLOP !== true) calculatedPaidDays += 1;
+                else if (record.status === 'Holiday') calculatedPaidDays += 1;
+                else if (record.status === 'Half Day') calculatedPaidDays += 0.5;
+                // Absent or isLOP=true adds 0
+            } else {
+                // Automation: If unmarked and is Sunday, count as paid
+                if (currentDate.getDay() === 0) { // 0 is Sunday
+                    calculatedPaidDays += 1;
+                }
+            }
+        }
+
+        const paidDays = calculatedPaidDays;
 
         // Overtime Calculation
         const totalOvertimeHours = attendanceRecords.reduce((sum, r) => sum + (r.overtimeHours || 0), 0);
 
-        // If no records, assume full month present for demo/safety, or handle as per config
-        const paidDays = attendanceRecords.length > 0 ? (totalDays - lopCount - (halfDayCount * 0.5)) : totalDays;
+        // LOP days = Total days - Paid days
         const lopDays = totalDays - paidDays;
+
+        // Pay ratio for pro-rata salary calculation
         const payRatio = paidDays / totalDays;
 
         const processedEarnings = [];
