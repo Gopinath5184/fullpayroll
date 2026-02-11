@@ -19,7 +19,7 @@ const MyPayslips = () => {
 
     const fetchMyPayslips = async () => {
         try {
-            const { data } = await api.get(`/payroll/employee/${user._id}`);
+            const { data } = await api.get('/employee/payslips');
             if (data && data.length > 0) {
                 setPayslips(data);
             }

@@ -1,6 +1,7 @@
 // Module 8: Tax Management System
 const TaxDeclaration = require('../models/TaxDeclaration');
 const Employee = require('../models/Employee');
+const { logAction, notifyUser } = require('../utils/logger');
 
 // @desc    Submit Tax Declaration
 // @route   POST /api/tax/declaration
@@ -43,6 +44,16 @@ const submitDeclaration = async (req, res) => {
         }
 
         await declaration.save();
+
+        // Log action
+        await logAction({
+            userId: req.user._id,
+            role: req.user.role,
+            action: 'Submitted Tax Declaration',
+            description: `Submitted tax declaration for FY ${financialYear}`,
+            ip: req.ip
+        });
+
         res.status(200).json(declaration);
     } catch (error) {
         console.error(error);
@@ -100,7 +111,30 @@ const getAllDeclarations = async (req, res) => {
 const approveDeclaration = async (req, res) => {
     const { status } = req.body;
     try {
-        const declaration = await TaxDeclaration.findByIdAndUpdate(req.params.id, { status }, { new: true });
+        const declaration = await TaxDeclaration.findByIdAndUpdate(req.params.id, { status }, { new: true })
+            .populate({
+                path: 'employee',
+                populate: { path: 'user', select: 'name' }
+            });
+
+        if (declaration) {
+            // Log action
+            await logAction({
+                userId: req.user._id,
+                role: req.user.role,
+                action: `${status} Tax Declaration`,
+                description: `${status} tax declaration for FY ${declaration.financialYear} of ${declaration.employee.user.name}`,
+                ip: req.ip
+            });
+
+            // Notify employee
+            await notifyUser({
+                userId: declaration.employee.user._id,
+                message: `Your tax declaration for FY ${declaration.financialYear} has been ${status.toLowerCase()}.`,
+                type: status === 'Approved' ? 'success' : 'warning'
+            });
+        }
+
         res.json(declaration);
     } catch (error) {
         console.error(error);

@@ -1,5 +1,6 @@
 const Employee = require('../models/Employee');
 const User = require('../models/User');
+const { logAction } = require('../utils/logger');
 
 // @desc    Create a new employee (and optionally a User account)
 // @route   POST /api/employees
@@ -45,6 +46,15 @@ const createEmployee = async (req, res) => {
             paymentDetails,
             taxRegime,
             salaryStructure
+        });
+
+        // Log action
+        await logAction({
+            userId: req.user._id,
+            role: req.user.role,
+            action: 'Created Employee',
+            description: `Created employee profile for ${name} (${employeeId})`,
+            ip: req.ip
         });
 
         res.status(201).json(employee);
@@ -104,6 +114,15 @@ const updateEmployee = async (req, res) => {
             await employee.save();
 
             const updatedEmployee = await Employee.findById(employee._id).populate('user', 'name email role');
+            // Log action
+            await logAction({
+                userId: req.user._id,
+                role: req.user.role,
+                action: 'Updated Employee',
+                description: `Updated employee profile for ${updatedEmployee.user.name} (${updatedEmployee.employeeId})`,
+                ip: req.ip
+            });
+
             res.json(updatedEmployee);
         } else {
             res.status(404).json({ message: 'Employee not found' });

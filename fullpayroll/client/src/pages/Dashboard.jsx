@@ -7,6 +7,7 @@ import {
     FaUserTie, FaBriefcase, FaHandHoldingUsd, FaShieldAlt, FaUniversity, FaCheckCircle
 } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
+import EmployeeDashboardPage from './EmployeeDashboard';
 
 // --- Shared Components ---
 const StatCard = ({ title, value, icon: Icon, color, link, subtext }) => (
@@ -271,100 +272,7 @@ const AdminDashboard = ({ user }) => {
     );
 };
 
-const EmployeeDashboard = ({ user }) => {
-    const [profile, setProfile] = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchProfile = async () => {
-            try {
-                const { data } = await api.get(`/employees/me`); // Assuming this exists or works with /employees/id
-                setProfile(data);
-            } catch (error) {
-                console.error("Failed to fetch profile", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchProfile();
-    }, []);
-
-    return (
-        <div className="space-y-8 animate-fade-in">
-            <WelcomeBanner user={user} icon={FaBriefcase} />
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard title="Attendance" value="Present" icon={FaCheckCircle} color="#10B981" link="/attendance" subtext="Checked in today" />
-                <StatCard title="Leave Balance" value="12 Days" icon={FaCalendarCheck} color="#F59E0B" subtext="Casual & Sick Leave" />
-                <StatCard title="Next Payday" value="25 Days" icon={FaClock} color="#3B82F6" subtext="End of month" />
-            </div>
-
-            {/* Module 3: Employee Payroll Profile Details */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-6 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-                    <div>
-                        <h2 className="text-xl font-bold text-gray-800">Payroll Profile</h2>
-                        <p className="text-sm text-gray-500">Your tax and salary settings</p>
-                    </div>
-                    <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
-                        <FaShieldAlt className="w-5 h-5" />
-                    </div>
-                </div>
-                <div className="p-6">
-                    {loading ? (
-                        <div className="animate-pulse flex space-x-4">
-                            <div className="flex-1 space-y-4 py-1">
-                                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                                <div className="h-4 bg-gray-200 rounded"></div>
-                                <div className="h-4 bg-gray-200 rounded w-5/6"></div>
-                            </div>
-                        </div>
-                    ) : profile ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                            <div>
-                                <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Tax Regime</p>
-                                <p className="text-sm font-bold text-gray-700 bg-indigo-50 inline-block px-2 py-1 rounded">
-                                    {profile.payrollProfile?.taxRegime || profile.taxRegime || 'Not Set'} Regime
-                                </p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Salary Structure</p>
-                                <p className="text-sm font-bold text-gray-700">
-                                    {profile.salaryStructure?.name || 'Standard Structure'}
-                                </p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Bank Details</p>
-                                <div className="flex items-center gap-2">
-                                    <FaUniversity className="text-gray-400 text-xs" />
-                                    <p className="text-sm font-bold text-gray-700">
-                                        {(profile.payrollProfile?.bankDetails?.bankName || profile.paymentDetails?.bankName) || 'N/A'}
-                                        (...{(profile.payrollProfile?.bankDetails?.accountNumber?.slice(-4) || profile.paymentDetails?.accountNumber?.slice(-4)) || 'XXXX'})
-                                    </p>
-                                </div>
-                            </div>
-                            <div>
-                                <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Employee ID</p>
-                                <p className="text-sm font-bold text-gray-700">{profile.employeeId}</p>
-                            </div>
-                        </div>
-                    ) : (
-                        <p className="text-sm text-gray-500 italic">Complete your profile to view details.</p>
-                    )}
-                </div>
-            </div>
-
-            <div>
-                <h2 className="text-xl font-bold text-gray-800 mb-4">Self Service</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <QuickAction title="Mark Attendance" desc="Log your work hours" link="/attendance" icon={FaClock} color="#3B82F6" />
-                    <QuickAction title="Tax Declaration" desc="Submit investment proofs" link="/tax-declaration" icon={FaFileInvoiceDollar} color="#8B5CF6" />
-                    <QuickAction title="My Payslips" desc="View salary history" link="/my-payslips" icon={FaMoneyBillWave} color="#10B981" />
-                </div>
-            </div>
-        </div>
-    );
-};
+// Internal EmployeeDashboard removed in favor of external EmployeeDashboardPage
 
 const FinanceDashboard = ({ user }) => {
     return (
@@ -399,7 +307,7 @@ const Dashboard = () => {
     } else if (user.role === 'Finance') {
         return <FinanceDashboard user={user} />;
     } else {
-        return <EmployeeDashboard user={user} />;
+        return <EmployeeDashboardPage user={user} />;
     }
 };
 

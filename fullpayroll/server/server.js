@@ -28,6 +28,9 @@ app.use('/api/attendance', require('./src/routes/attendanceRoutes'));
 app.use('/api/payroll', require('./src/routes/payrollRoutes'));
 app.use('/api/payroll-profile', require('./src/routes/payrollProfileRoutes'));
 app.use('/api/tax', require('./src/routes/taxRoutes'));
+app.use('/api/employee', require('./src/routes/essRoutes'));
+app.use('/api/notifications', require('./src/routes/notificationRoutes'));
+app.use('/api/audit-logs', require('./src/routes/auditLogRoutes'));
 app.use('/api/reports', require('./src/routes/reportRoutes'));
 app.use('/api/seed', require('./src/routes/seedRoutes'));
 

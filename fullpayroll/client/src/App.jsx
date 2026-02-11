@@ -14,6 +14,7 @@ import MyPayslips from './pages/MyPayslips';
 import TaxDeclaration from './pages/TaxDeclaration';
 import Reports from './pages/Reports';
 import AuditLogs from './pages/AuditLogs';
+import SalaryStructure from './pages/SalaryStructure';
 import PayrollProfileList from './pages/PayrollProfileList';
 import PayrollProfileForm from './pages/PayrollProfileForm';
 import Unauthorized from './pages/Unauthorized';
@@ -53,6 +54,11 @@ function App() {
               } />
               <Route path="/payslip/:id" element={<Payslip />} />
               <Route path="/my-payslips" element={<MyPayslips />} />
+              <Route path="/employee/salary-structure" element={
+                <ProtectedRoute allowedRoles={['Employee']}>
+                  <SalaryStructure />
+                </ProtectedRoute>
+              } />
               <Route path="/tax-declaration" element={<TaxDeclaration />} />
               <Route path="/payroll-profiles" element={
                 <ProtectedRoute allowedRoles={['Super Admin', 'Payroll Admin', 'HR Admin']}>

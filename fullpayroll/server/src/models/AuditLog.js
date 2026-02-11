@@ -5,8 +5,9 @@ const auditLogSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
     },
+    role: String,
     action: String, // e.g., "Run Payroll"
-    details: String,
+    description: String,
     ip: String,
 }, {
     timestamps: true,

@@ -6,6 +6,7 @@ const Statutory = require('../models/Statutory');
 const AuditLog = require('../models/AuditLog');
 const TaxDeclaration = require('../models/TaxDeclaration');
 const { calculateTax } = require('../utils/taxCalculator');
+const { logAction, notifyUser, notifyAllEmployees } = require('../utils/logger');
 
 // Helper to calculate days in month
 const getDaysInMonth = (month, year) => new Date(year, month, 0).getDate();
@@ -281,10 +282,11 @@ const generatePayrollBatch = async (employees, month, year, organization, statut
     }
 
     // Create Audit Log
-    await AuditLog.create({
-        user: userId,
+    await logAction({
+        userId,
+        role: 'Payroll Admin',
         action: 'Processed Payroll',
-        details: `Processed payroll for ${month}/${year} - ${results.length} employees`,
+        description: `Processed payroll for ${month}/${year} - ${results.length} employees`,
         ip: ip
     });
 
@@ -310,6 +312,19 @@ const approvePayroll = async (req, res) => {
         { organization: req.user.organization, month, year },
         { status: 'Approved' }
     );
+
+    // Notify all employees
+    await notifyAllEmployees(`Payroll for ${month}/${year} has been approved and is ready for viewing.`, 'success');
+
+    // Log action
+    await logAction({
+        userId: req.user._id,
+        role: req.user.role,
+        action: 'Approved Payroll',
+        description: `Approved payroll for ${month}/${year}`,
+        ip: req.ip
+    });
+
     res.json({ message: 'Payroll approved for period' });
 };
 
@@ -322,6 +337,16 @@ const unlockPayroll = async (req, res) => {
         { organization: req.user.organization, month, year },
         { status: 'Draft' }
     );
+
+    // Log action
+    await logAction({
+        userId: req.user._id,
+        role: req.user.role,
+        action: 'Unlocked Payroll',
+        description: `Unlocked payroll for ${month}/${year}`,
+        ip: req.ip
+    });
+
     res.json({ message: 'Payroll unlocked. Status reverted to Draft.' });
 };
 
@@ -335,6 +360,7 @@ const disbursePayroll = async (req, res) => {
         return res.status(400).json({ message: 'Month and Year are required' });
     }
 
+    // Mark status as Paid
     const result = await Payroll.updateMany(
         { organization: req.user.organization, month, year, status: 'Approved' },
         {
@@ -347,6 +373,18 @@ const disbursePayroll = async (req, res) => {
     if (result.modifiedCount === 0) {
         return res.status(404).json({ message: 'No approved payroll records found to disburse' });
     }
+
+    // Notify employees
+    await notifyAllEmployees(`Salary for ${month}/${year} has been disbursed! Check your bank account.`, 'success');
+
+    // Log action
+    await logAction({
+        userId: req.user._id,
+        role: req.user.role,
+        action: 'Disbursed Payroll',
+        description: `Disbursed salaries for ${month}/${year} - ${result.modifiedCount} employees`,
+        ip: req.ip
+    });
 
     res.json({ message: `Successfully disbursed salaries for ${result.modifiedCount} employees` });
 };
