@@ -13,6 +13,7 @@ import Payslip from './pages/Payslip';
 import MyPayslips from './pages/MyPayslips';
 import TaxDeclaration from './pages/TaxDeclaration';
 import Reports from './pages/Reports';
+import AuditLogs from './pages/AuditLogs';
 import PayrollProfileList from './pages/PayrollProfileList';
 import PayrollProfileForm from './pages/PayrollProfileForm';
 import Unauthorized from './pages/Unauthorized';
@@ -64,8 +65,13 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/reports" element={
-                <ProtectedRoute allowedRoles={['Super Admin', 'Payroll Admin', 'Finance']}>
+                <ProtectedRoute allowedRoles={['Super Admin', 'Payroll Admin', 'Finance', 'HR Admin']}>
                   <Reports />
+                </ProtectedRoute>
+              } />
+              <Route path="/audit-logs" element={
+                <ProtectedRoute allowedRoles={['Super Admin', 'Payroll Admin']}>
+                  <AuditLogs />
                 </ProtectedRoute>
               } />
             </Route>

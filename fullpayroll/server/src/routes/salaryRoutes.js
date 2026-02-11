@@ -4,11 +4,11 @@ const { createComponent, getComponents, createStructure, getStructures, getStruc
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.route('/components')
-    .post(protect, authorize('Super Admin', 'Payroll Admin'), createComponent)
+    .post(protect, authorize('Super Admin', 'Payroll Admin', 'HR Admin'), createComponent)
     .get(protect, getComponents);
 
 router.route('/structures')
-    .post(protect, authorize('Super Admin', 'Payroll Admin'), createStructure)
+    .post(protect, authorize('Super Admin', 'Payroll Admin', 'HR Admin'), createStructure)
     .get(protect, getStructures);
 
 router.route('/structures/:id')
