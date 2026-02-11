@@ -1,7 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import api from '../utils/api';
+import AuthContext from '../context/AuthContext';
+import { generatePDF } from '../utils/pdfGenerator';
+import PayslipDocument from '../components/PayslipDocument';
+import { createRoot } from 'react-dom/client';
 
 const PayrollProcess = () => {
+    const { user } = useContext(AuthContext);
+    const canManagePayroll = user?.role === 'Super Admin' || user?.role === 'Payroll Admin';
     const [month, setMonth] = useState(new Date().getMonth() + 1);
     const [year, setYear] = useState(new Date().getFullYear());
     const [payrolls, setPayrolls] = useState([]);
@@ -52,6 +58,42 @@ const PayrollProcess = () => {
             setMessage('Error downloading Bank Advice');
         }
     };
+
+    const downloadPayslipPDF = async (payrollId) => {
+        try {
+            const { data: payslip } = await api.get(`/payroll/payslip/${payrollId}`);
+
+            // Create a hidden container to render the payslip
+            const container = document.createElement('div');
+            container.style.position = 'absolute';
+            container.style.left = '-9999px';
+            container.style.top = '0';
+            document.body.appendChild(container);
+
+            const root = createRoot(container);
+            root.render(
+                <div id={`payslip-${payrollId}`}>
+                    <PayslipDocument payslip={payslip} id={`payslip-content-${payrollId}`} />
+                </div>
+            );
+
+            // Wait specifically for the element to be present in DOM
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            await generatePDF(`payslip-content-${payrollId}`, `Payslip_${payslip.employee.employeeId}_${month}_${year}.pdf`);
+
+            // Cleanup
+            setTimeout(() => {
+                root.unmount();
+                document.body.removeChild(container);
+            }, 100);
+
+        } catch (error) {
+            console.error('Error downloading payslip', error);
+            setMessage('Error generating payslip PDF');
+        }
+    };
+
 
     const runPayroll = async () => {
         setLoading(true);
@@ -131,19 +173,21 @@ const PayrollProcess = () => {
                     </div>
 
                     <div className="flex gap-3">
-                        <button
-                            onClick={runPayroll}
-                            disabled={loading || (payrolls.length > 0 && payrolls[0].status === 'Approved')}
-                            className={`px-6 py-2.5 rounded-lg text-white font-medium shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center gap-2 ${loading || (payrolls.length > 0 && payrolls[0].status === 'Approved')
-                                ? 'bg-gray-400 cursor-not-allowed'
-                                : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/30'
-                                }`}
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            {loading ? 'Processing...' : 'Run Payroll'}
-                        </button>
+                        {canManagePayroll && (
+                            <button
+                                onClick={runPayroll}
+                                disabled={loading || (payrolls.length > 0 && payrolls[0].status === 'Approved')}
+                                className={`px-6 py-2.5 rounded-lg text-white font-medium shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center gap-2 ${loading || (payrolls.length > 0 && payrolls[0].status === 'Approved')
+                                    ? 'bg-gray-400 cursor-not-allowed'
+                                    : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/30'
+                                    }`}
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                {loading ? 'Processing...' : 'Run Payroll'}
+                            </button>
+                        )}
 
-                        {payrolls.length > 0 && payrolls[0].status !== 'Approved' && (
+                        {canManagePayroll && payrolls.length > 0 && payrolls[0].status !== 'Approved' && (
                             <button
                                 onClick={approvePayroll}
                                 className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 shadow-lg shadow-green-500/30 flex items-center gap-2"
@@ -164,26 +208,30 @@ const PayrollProcess = () => {
                                     Bank Advice
                                 </button>
                                 <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={disbursePayroll}
-                                        className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 shadow-lg shadow-blue-500/30 flex items-center gap-2"
-                                        title="Mark as Paid"
-                                    >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                        Mark as Paid
-                                    </button>
+                                    {canManagePayroll && (
+                                        <button
+                                            onClick={disbursePayroll}
+                                            className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 shadow-lg shadow-blue-500/30 flex items-center gap-2"
+                                            title="Mark as Paid"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                            Mark as Paid
+                                        </button>
+                                    )}
                                     <span className="px-6 py-2.5 bg-green-100 text-green-700 rounded-lg font-semibold flex items-center gap-2 border border-green-200">
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                         Approved
                                     </span>
-                                    <button
-                                        onClick={unlockPayroll}
-                                        className="px-4 py-2 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 rounded-lg font-medium transition flex items-center gap-2 border border-yellow-300"
-                                        title="Revert to Draft"
-                                    >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
-                                        Unlock
-                                    </button>
+                                    {canManagePayroll && (
+                                        <button
+                                            onClick={unlockPayroll}
+                                            className="px-4 py-2 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 rounded-lg font-medium transition flex items-center gap-2 border border-yellow-300"
+                                            title="Revert to Draft"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
+                                            Unlock
+                                        </button>
+                                    )}
                                 </div>
                             </>
                         )}
@@ -264,8 +312,16 @@ const PayrollProcess = () => {
                                                 {item.status}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <a href={`/payslip/${item._id}`} target="_blank" className="text-indigo-600 hover:text-indigo-900 hover:underline">View Payslip</a>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium flex gap-2">
+                                            <a href={`/payslip/${item._id}`} target="_blank" className="text-indigo-600 hover:text-indigo-900 hover:underline">View</a>
+                                            <button
+                                                onClick={() => downloadPayslipPDF(item._id)}
+                                                className="text-gray-600 hover:text-gray-900 hover:underline flex items-center gap-1"
+                                                title="Download PDF"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                                Download
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}

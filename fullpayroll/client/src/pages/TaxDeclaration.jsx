@@ -6,6 +6,8 @@ import { FaShieldAlt, FaHome, FaHistory, FaSave, FaTrash } from 'react-icons/fa'
 
 const TaxDeclaration = () => {
     const { user } = useContext(AuthContext);
+    const canEdit = user?.role === 'Super Admin' || user?.role === 'Employee';
+    const canSearch = user?.role === 'Super Admin' || user?.role === 'Payroll Admin';
     const [declaration, setDeclaration] = useState({
         financialYear: '2024-2025',
         section80C: [{ description: '', amount: 0 }],
@@ -99,7 +101,7 @@ const TaxDeclaration = () => {
                     <div className="flex flex-col md:flex-row md:items-center gap-3 mt-2">
                         <p className="text-gray-500 font-medium tracking-tight">Financial Year {declaration.financialYear}</p>
 
-                        {user?.role === 'HR Admin' && (
+                        {canSearch && (
                             <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-indigo-100 shadow-sm ml-2">
                                 <span className="text-[10px] font-bold text-indigo-400 uppercase">Search EMP:</span>
                                 <input
@@ -157,6 +159,7 @@ const TaxDeclaration = () => {
                                             onChange={(e) => handle80CChange(index, 'description', e.target.value)}
                                             className="w-full border-gray-200 focus:ring-indigo-500 focus:border-indigo-500 rounded-xl text-sm transition-all"
                                             placeholder="LIC, PPF, ELSS, etc."
+                                            disabled={!canEdit}
                                         />
                                     </div>
                                     <div className="md:w-48 w-full text-left">
@@ -166,24 +169,28 @@ const TaxDeclaration = () => {
                                             value={item.amount}
                                             onChange={(e) => handle80CChange(index, 'amount', parseFloat(e.target.value) || 0)}
                                             className="w-full border-gray-200 focus:ring-indigo-500 focus:border-indigo-500 rounded-xl text-sm text-right font-mono"
+                                            disabled={!canEdit}
                                         />
                                     </div>
                                     <button
                                         type="button"
                                         onClick={() => remove80C(index)}
                                         className="p-2.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                        disabled={!canEdit}
                                     >
                                         <FaTrash size={14} />
                                     </button>
                                 </div>
                             ))}
-                            <button
-                                type="button"
-                                onClick={add80C}
-                                className="w-full py-4 border-2 border-dashed border-gray-100 rounded-2xl text-gray-400 hover:border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50/30 transition-all flex items-center justify-center gap-2 text-sm font-bold"
-                            >
-                                + Add Another Entry
-                            </button>
+                            {canEdit && (
+                                <button
+                                    type="button"
+                                    onClick={add80C}
+                                    className="w-full py-4 border-2 border-dashed border-gray-100 rounded-2xl text-gray-400 hover:border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50/30 transition-all flex items-center justify-center gap-2 text-sm font-bold"
+                                >
+                                    + Add Another Entry
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -205,6 +212,7 @@ const TaxDeclaration = () => {
                                     value={declaration.hra?.rentAmount || 0}
                                     onChange={(e) => setDeclaration({ ...declaration, hra: { ...declaration.hra, rentAmount: parseFloat(e.target.value) || 0 } })}
                                     className="w-full border-gray-200 focus:ring-amber-500 focus:border-amber-500 rounded-xl text-lg font-mono"
+                                    disabled={!canEdit}
                                 />
                             </div>
                             <div className="text-left">
@@ -216,6 +224,7 @@ const TaxDeclaration = () => {
                                     className="w-full border-gray-200 focus:ring-amber-500 focus:border-amber-500 rounded-xl text-lg uppercase tracking-widest font-mono"
                                     placeholder="ABCDE1234F"
                                     maxLength={10}
+                                    disabled={!canEdit}
                                 />
                             </div>
                         </div>
@@ -244,12 +253,14 @@ const TaxDeclaration = () => {
                                 </div>
                             </div>
                         </div>
-                        <button
-                            type="submit"
-                            className="w-full mt-10 bg-white text-indigo-600 font-black py-4 rounded-2xl hover:bg-slate-50 transition-all shadow-xl flex items-center justify-center gap-3 active:scale-95"
-                        >
-                            <FaSave /> SAVE & SUBMIT
-                        </button>
+                        {canEdit && (
+                            <button
+                                type="submit"
+                                className="w-full mt-10 bg-white text-indigo-600 font-black py-4 rounded-2xl hover:bg-slate-50 transition-all shadow-xl flex items-center justify-center gap-3 active:scale-95"
+                            >
+                                <FaSave /> SAVE & SUBMIT
+                            </button>
+                        )}
                     </div>
 
                     <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100">

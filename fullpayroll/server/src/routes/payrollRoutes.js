@@ -4,10 +4,10 @@ const { runPayroll, getPayroll, approvePayroll, unlockPayroll } = require('../co
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.route('/run')
-    .post(protect, authorize('Payroll Admin'), runPayroll);
+    .post(protect, authorize('Payroll Admin', 'Super Admin'), runPayroll);
 
 router.route('/approve')
-    .put(protect, authorize('Payroll Admin'), approvePayroll);
+    .put(protect, authorize('Payroll Admin', 'Super Admin'), approvePayroll);
 
 router.route('/unlock')
     .put(protect, authorize('Super Admin'), unlockPayroll);

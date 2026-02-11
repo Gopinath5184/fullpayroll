@@ -10,13 +10,13 @@ const {
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.route('/declaration')
-    .post(protect, submitDeclaration)
-    .get(protect, getMyDeclaration);
+    .post(protect, authorize('Employee', 'Super Admin'), submitDeclaration)
+    .get(protect, authorize('Super Admin', 'Payroll Admin', 'Employee'), getMyDeclaration);
 
 router.route('/all')
-    .get(protect, authorize('HR Admin', 'Super Admin'), getAllDeclarations);
+    .get(protect, authorize('Super Admin', 'Payroll Admin'), getAllDeclarations);
 
 router.route('/approve/:id')
-    .put(protect, authorize('HR Admin', 'Super Admin'), approveDeclaration);
+    .put(protect, authorize('Super Admin'), approveDeclaration);
 
 module.exports = router;

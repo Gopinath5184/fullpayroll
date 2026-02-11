@@ -1,8 +1,74 @@
 import { useState } from 'react';
 import { FaFilePdf, FaFileExcel, FaDownload, FaChartBar, FaTable } from 'react-icons/fa';
+import api from '../utils/api';
+import { convertToCSV, downloadFile } from '../utils/downloadHelper';
+import { generatePDF } from '../utils/pdfGenerator'; // Reuse if possible or implement new
 
 const Reports = () => {
     const [activeTab, setActiveTab] = useState('Payroll');
+    const [downloading, setDownloading] = useState(false);
+    const [month, setMonth] = useState(new Date().getMonth() + 1);
+    const [year, setYear] = useState(new Date().getFullYear());
+
+    const handleDownload = async (reportName, format) => {
+        setDownloading(true);
+        try {
+            let data;
+            let filename = `${reportName.replace(/\s+/g, '_')}_${month}_${year}`;
+
+            if (reportName === 'Monthly Payroll Register') {
+                const response = await api.get(`/payroll?month=${month}&year=${year}`);
+                data = response.data.map(p => ({
+                    EmployeeID: p.employee.employeeId,
+                    Name: p.employee.user?.name,
+                    Department: p.employee.department,
+                    Designation: p.employee.designation,
+                    DaysPresent: p.presentDays,
+                    GrossSalary: p.grossSalary,
+                    TotalDeductions: p.totalDeductions,
+                    NetSalary: p.netSalary,
+                    Status: p.status
+                }));
+                if (format === 'PDF') {
+                    alert("PDF download for full register not implemented yet. Downloading CSV.");
+                    // generatePDF(...) - complex for a full table, keeping CSV for now
+                }
+                const csv = convertToCSV(data);
+                downloadFile(csv, `${filename}.csv`);
+
+            } else if (reportName === 'Bank Transfer Statement') {
+                const response = await api.get(`/payroll?month=${month}&year=${year}`);
+                data = response.data.map(p => ({
+                    BeneficiaryName: p.employee.user?.name,
+                    AccountNumber: p.employee.paymentDetails?.accountNumber || 'N/A',
+                    IFSC: p.employee.paymentDetails?.ifscCode || 'N/A',
+                    Amount: p.netSalary,
+                    Narrative: `Salary ${month}/${year}`
+                }));
+                const csv = convertToCSV(data);
+                downloadFile(csv, `${filename}.csv`);
+
+            } else if (reportName === 'PF Electronic Challan (ECR)') {
+                const response = await api.get(`/reports/pf?month=${month}&year=${year}`);
+                data = response.data; // Already formatted by backend
+                const csv = convertToCSV(data);
+                downloadFile(csv, `${filename}.csv`);
+            } else if (reportName === 'ESI Contribution Report') {
+                const response = await api.get(`/reports/esi?month=${month}&year=${year}`);
+                data = response.data;
+                const csv = convertToCSV(data);
+                downloadFile(csv, `${filename}.csv`);
+            } else {
+                alert(`Download for ${reportName} is under development.`);
+            }
+
+        } catch (error) {
+            console.error("Download failed", error);
+            alert("Failed to download report. Please try again.");
+        } finally {
+            setDownloading(false);
+        }
+    };
 
     const reports = {
         Payroll: [
@@ -28,6 +94,16 @@ const Reports = () => {
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800">Reports & Analytics</h1>
                     <p className="text-gray-500">Download and analyze your organization's financial data</p>
+                    <div className="flex gap-4 mt-4">
+                        <select value={month} onChange={e => setMonth(e.target.value)} className="border rounded p-2">
+                            {Array.from({ length: 12 }, (_, i) => (
+                                <option key={i + 1} value={i + 1}>{new Date(0, i).toLocaleString('default', { month: 'long' })}</option>
+                            ))}
+                        </select>
+                        <select value={year} onChange={e => setYear(e.target.value)} className="border rounded p-2">
+                            {['2024', '2025', '2026'].map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                    </div>
                 </div>
                 <div className="flex gap-2">
                     <button className="flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-lg font-medium border border-blue-100 hover:bg-blue-100 transition">
@@ -62,11 +138,15 @@ const Reports = () => {
                             </span>
                         </div>
                         <h3 className="font-bold text-gray-800 mb-1">{report.name}</h3>
-                        <p className="text-xs text-gray-500 mb-6">{report.date}</p>
+                        <p className="text-xs text-gray-500 mb-6 font-mono bg-gray-50 inline-block px-2 py-1 rounded">Period: {new Date(0, month - 1).toLocaleString('default', { month: 'short' })} {year}</p>
 
                         <div className="flex gap-2">
-                            <button className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white text-sm py-2 rounded-lg hover:bg-blue-700 transition font-medium">
-                                <FaDownload className="text-xs" /> Download
+                            <button
+                                onClick={() => handleDownload(report.name, 'CSV')}
+                                disabled={downloading}
+                                className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white text-sm py-2 rounded-lg hover:bg-blue-700 transition font-medium disabled:opacity-50"
+                            >
+                                <FaDownload className="text-xs" /> {downloading ? 'Please wait...' : 'Download'}
                             </button>
                             <button className="px-3 bg-gray-50 text-gray-400 border border-gray-200 rounded-lg hover:bg-gray-100 hover:text-gray-600 transition">
                                 <FaFilePdf />

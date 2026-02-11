@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../utils/api';
-import { FaUserEdit, FaCheckCircle, FaTimesCircle, FaUsers } from 'react-icons/fa';
+import { FaUserEdit, FaCheckCircle, FaTimesCircle, FaUsers, FaEye } from 'react-icons/fa';
+import AuthContext from '../context/AuthContext';
 
 const PayrollProfileList = () => {
     const [employees, setEmployees] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const { user: currentUser } = useContext(AuthContext);
 
     useEffect(() => {
         fetchEmployees();
@@ -127,7 +129,7 @@ const PayrollProfileList = () => {
                                             to={`/payroll-profile/${emp._id}`}
                                             className="inline-flex items-center gap-2 bg-white text-indigo-600 border border-indigo-100 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-600 hover:text-white hover:shadow-lg hover:shadow-indigo-100 transition-all active:scale-95"
                                         >
-                                            <FaUserEdit size={14} /> Configure
+                                            {currentUser?.role === 'Payroll Admin' ? <><FaEye size={14} /> View</> : <><FaUserEdit size={14} /> Configure</>}
                                         </Link>
                                     </td>
                                 </tr>
@@ -136,7 +138,7 @@ const PayrollProfileList = () => {
                     </table>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

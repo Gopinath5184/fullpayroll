@@ -6,10 +6,19 @@ const Employee = require('../models/Employee');
 // @route   POST /api/tax/declaration
 // @access  Private (Employee)
 const submitDeclaration = async (req, res) => {
-    const { financialYear, section80C, section80D, hra } = req.body;
+    const { financialYear, section80C, section80D, hra, employeeId } = req.body;
 
     try {
-        const employee = await Employee.findOne({ user: req.user._id });
+        let employee;
+
+        // If employeeId is provided and user is Super Admin, find that employee
+        if (employeeId && req.user.role === 'Super Admin') {
+            employee = await Employee.findOne({ employeeId });
+        } else {
+            // Otherwise, find employee by logged-in user
+            employee = await Employee.findOne({ user: req.user._id });
+        }
+
         if (!employee) return res.status(404).json({ message: 'Employee profile not found' });
 
         let declaration = await TaxDeclaration.findOne({
@@ -48,7 +57,7 @@ const getMyDeclaration = async (req, res) => {
     const { financialYear, employeeId } = req.query;
     try {
         let employee;
-        if (employeeId && (req.user.role === 'HR Admin' || req.user.role === 'Super Admin')) {
+        if (employeeId && (req.user.role === 'HR Admin' || req.user.role === 'Super Admin' || req.user.role === 'Payroll Admin')) {
             employee = await Employee.findOne({ employeeId });
         } else {
             employee = await Employee.findOne({ user: req.user._id });

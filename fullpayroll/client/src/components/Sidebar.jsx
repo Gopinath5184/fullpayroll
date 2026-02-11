@@ -4,7 +4,7 @@ import AuthContext from '../context/AuthContext';
 import {
     FaHome, FaBuilding, FaUsers, FaMoneyBillWave,
     FaCalendarCheck, FaFileInvoiceDollar, FaFileContract,
-    FaChartBar, FaCalculator
+    FaChartBar, FaCalculator, FaUserCog
 } from 'react-icons/fa';
 
 const Sidebar = () => {
@@ -15,12 +15,12 @@ const Sidebar = () => {
         { name: 'Dashboard', href: '/dashboard', icon: FaHome, roles: ['Super Admin', 'Payroll Admin', 'HR Admin', 'Employee', 'Finance'] },
         { name: 'Statutory', href: '/statutory', icon: FaBuilding, roles: ['Super Admin'] },
         { name: 'Employees', href: '/employees', icon: FaUsers, roles: ['Super Admin', 'Payroll Admin', 'HR Admin'] },
-        { name: 'Payroll Profile', href: '/payroll-profiles', icon: FaCalculator, roles: ['HR Admin'] },
-        { name: 'Salary Config', href: '/salary-config', icon: FaMoneyBillWave, roles: ['Super Admin', 'Payroll Admin', 'HR Admin'] },
+        { name: 'Payroll Profile', href: '/payroll-profiles', icon: FaUserCog, roles: ['Super Admin', 'HR Admin', 'Payroll Admin'] },
+        { name: 'Salary Config', href: '/salary-config', icon: FaMoneyBillWave, roles: ['Super Admin', 'HR Admin', 'Payroll Admin'] },
         { name: 'Attendance', href: '/attendance', icon: FaCalendarCheck, roles: ['Super Admin', 'Payroll Admin', 'HR Admin', 'Employee'] },
-        { name: 'Run Payroll', href: '/payroll', icon: FaFileInvoiceDollar, roles: ['Super Admin', 'Payroll Admin', 'HR Admin'] },
+        { name: 'Run Payroll', href: '/payroll', icon: FaFileInvoiceDollar, roles: ['Super Admin', 'Payroll Admin', 'HR Admin', 'Finance'] },
         { name: 'My Payslips', href: '/my-payslips', icon: FaFileInvoiceDollar, roles: ['Employee'] },
-        { name: 'Tax Declaration', href: '/tax-declaration', icon: FaFileContract, roles: ['HR Admin', 'Employee'] },
+        { name: 'Tax Declaration', href: '/tax-declaration', icon: FaFileContract, roles: ['Super Admin', 'Payroll Admin', 'Employee'] },
         { name: 'Reports', href: '/reports', icon: FaChartBar, roles: ['Super Admin', 'Payroll Admin', 'Finance'] },
     ];
 
