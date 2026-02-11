@@ -76,10 +76,14 @@ const SalaryStructureConfig = () => {
     };
 
     const updateComponentValue = (id, field, value) => {
+        let finalValue = value;
+        if (field === 'value') {
+            finalValue = isNaN(value) ? 0 : value;
+        }
         setNewStructure(prev => ({
             ...prev,
             selectedComponents: prev.selectedComponents.map(c =>
-                c.component === id ? { ...c, [field]: value } : c
+                c.component === id ? { ...c, [field]: finalValue } : c
             )
         }));
     };
